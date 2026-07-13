@@ -1,0 +1,7 @@
+{
+  "axis": "auth",
+  "option": "none",
+  "label": "No authentication",
+  "description": "Public application, no login required.",
+  "claudeMdSummaryLine": "Auth: none (public app, no login)"
+}

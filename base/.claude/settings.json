@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+
+  "permissions": {
+    "allow": [
+      "Bash(ng serve*)",
+      "Bash(ng build*)",
+      "Bash(ng test*)",
+      "Bash(ng lint*)",
+      "Bash(ng generate component*)",
+      "Bash(ng generate service*)",
+      "Bash(ng generate guard*)",
+      "Bash(ng generate pipe*)",
+      "Bash(ng generate directive*)",
+      "Bash(npx prettier --write*)",
+      "Bash(npx prettier --check*)",
+      "Bash(npx eslint*)",
+      "Bash(git add*)",
+      "Bash(git commit*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)"
+    ],
+
+    "ask": [
+      "Bash(git push*)"
+    ],
+
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(~/.ssh/**)",
+
+      "Edit(./angular.json)",
+      "Edit(./package-lock.json)",
+      "Edit(./yarn.lock)",
+      "Edit(./pnpm-lock.yaml)",
+      "Edit(./tsconfig*.json)",
+      "Edit(./.env)",
+      "Edit(./.env.*)",
+      "Edit(./.claude/settings.json)",
+      "Edit(./.claude/rules/**)",
+      "Edit(./.claude/hooks/**)",
+      "Edit(./.github/**)",
+
+      "Write(./angular.json)",
+      "Write(./package-lock.json)",
+      "Write(./yarn.lock)",
+      "Write(./pnpm-lock.yaml)",
+      "Write(./.env)",
+      "Write(./.env.*)",
+      "Write(./.claude/settings.json)",
+      "Write(./.claude/rules/**)",
+      "Write(./.claude/hooks/**)",
+      "Write(./.github/**)",
+
+      "Bash(npm install*)",
+      "Bash(npm uninstall*)",
+      "Bash(npm update*)",
+      "Bash(npm audit fix --force*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git rebase*)",
+      "Bash(git commit --amend*)",
+      "Bash(curl*)",
+      "Bash(wget*)",
+      "Bash(rm -rf*)"
+    ]
+  },
+
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/protect-paths.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/guard-bash.sh"
+          }
+        ]
+      }
+    ],
+
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/format-and-lint.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

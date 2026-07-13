@@ -1,0 +1,7 @@
+{
+  "axis": "auth",
+  "option": "saml",
+  "label": "Enterprise SAML / IdP",
+  "description": "Enterprise single sign-on via SAML. The Angular app never handles SAML assertions directly — the backend does, and the frontend just holds a resulting session.",
+  "claudeMdSummaryLine": "Auth: Enterprise SAML (backend-handled assertion, session-cookie based on frontend)"
+}

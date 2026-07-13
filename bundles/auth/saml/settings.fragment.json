@@ -1,0 +1,8 @@
+{
+  "deny": [
+    "Edit(./src/app/core/services/auth.service.ts)",
+    "Edit(./src/app/core/guards/auth.guard.ts)",
+    "Write(./src/app/core/services/auth.service.ts)",
+    "Write(./src/app/core/guards/auth.guard.ts)"
+  ]
+}

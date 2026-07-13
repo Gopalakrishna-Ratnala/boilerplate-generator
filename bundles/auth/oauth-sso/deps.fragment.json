@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "angular-oauth2-oidc": "^22.0.2"
+  },
+  "devDependencies": {}
+}
