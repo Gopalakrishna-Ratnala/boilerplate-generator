@@ -1,0 +1,7 @@
+{
+  "axis": "deploy-target",
+  "option": "spa",
+  "label": "SPA (client-side rendered)",
+  "description": "Standard client-side rendered app — Angular's default. No SSR setup.",
+  "claudeMdSummaryLine": "Deploy target: SPA (client-side rendered, no SSR)"
+}

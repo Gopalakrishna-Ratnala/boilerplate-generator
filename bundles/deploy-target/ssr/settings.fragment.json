@@ -1,0 +1,8 @@
+{
+  "deny": [
+    "Edit(./src/server.ts)",
+    "Edit(./src/app/app.config.server.ts)",
+    "Write(./src/server.ts)",
+    "Write(./src/app/app.config.server.ts)"
+  ]
+}

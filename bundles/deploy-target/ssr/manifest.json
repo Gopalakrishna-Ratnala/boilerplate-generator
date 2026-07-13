@@ -1,0 +1,13 @@
+{
+  "axis": "deploy-target",
+  "option": "ssr",
+  "label": "SSR (server-side rendered)",
+  "description": "Server-side/hybrid rendering for SEO-sensitive or fast-first-paint public pages, via Angular's own @angular/ssr schematic.",
+  "claudeMdSummaryLine": "Deploy target: SSR (via `ng add @angular/ssr` at generation time, not hand-written)",
+  "postGenerateCommands": [
+    "ng add @angular/ssr --skip-confirmation"
+  ],
+  "knownIssues": [
+    "This bundle deliberately does NOT ship hand-written server.ts / app.config.server.ts / app.routes.server.ts files. Angular's SSR bootstrap plumbing changes across versions (it has changed significantly as recently as v17-v20 — CommonEngine, then AngularNodeAppEngine, changing import paths from @angular/ssr to @angular/ssr/node, etc.), so hand-maintaining these files would drift stale. Instead, generate.js MUST run the postGenerateCommands above (the real Angular CLI schematic) after the base Angular skeleton and other bundles are in place, so the scaffolded SSR files always match whatever Angular version is actually installed. If generate.js cannot run CLI commands in its execution environment, this bundle cannot be fully applied — that's a generate.js implementation constraint to solve, not something to route around with static files that will go stale."
+  ]
+}

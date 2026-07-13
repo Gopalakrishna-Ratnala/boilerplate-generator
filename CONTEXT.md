@@ -4,12 +4,12 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-13 (session 6)
-**Status:** `base/` layer + `auth` bundle + `data-layer` bundle + `state` bundle +
-`roles` bundle all built and tested. Remaining: `deploy-target` bundle, then
-`generate.js`, then the Claude Code skill, then Case 2 question phrasing. Pushed to
-GitHub: `https://github.com/Gopalakrishna-Ratnala/boilerplate-generator` (branch
-`main`).
+**Last updated:** 2026-07-13 (session 7)
+**Status:** All 5 fixed-axis bundles complete: `auth`, `data-layer`, `state`, `roles`,
+`deploy-target`. `base/` layer built and hardened. Next: `scripts/generate.js` (does not
+exist yet — this is the biggest remaining piece), then the Claude Code skill, then Case
+2 question phrasing. Pushed to GitHub:
+`https://github.com/Gopalakrishna-Ratnala/boilerplate-generator` (branch `main`).
 
 ---
 
@@ -110,7 +110,7 @@ boilerplate-generator/
 │   ├── data-layer/{mock, rest, graphql, realtime}/          # ✅ BUILT
 │   ├── state/{signals-only, ngrx-signalstore}/               # ✅ BUILT
 │   ├── roles/{single-role, rbac}/                           # ✅ BUILT
-│   └── deploy-target/{spa, ssr}/                            # ❌ NOT YET BUILT
+│   └── deploy-target/{spa, ssr}/                            # ✅ BUILT
 └── scripts/
     └── generate.js                # ❌ NOT YET BUILT — the deterministic merge+push script
 ```
@@ -336,7 +336,50 @@ bundle with a real cross-bundle file dependency.**
 
 All JSON validated with `jq empty` (6/6 valid).
 
-## 11. GitHub repo set up (session 4)
+## 11. `deploy-target` bundle — ✅ built and tested (both options) — different approach, deliberately
+
+| Option | Pattern | Deps added | Files added |
+|---|---|---|---|
+| `spa` | Default client-side rendering, no changes | none | none |
+| `ssr` | Angular's own SSR via the real CLI schematic | none from us (schematic installs its own, version-matched) | none from us (schematic generates them) |
+
+**This bundle broke from the established "ship static `files/`" pattern, deliberately,
+not by oversight.** Angular's SSR bootstrap plumbing (`server.ts`,
+`app.config.server.ts`) has changed meaningfully across versions (`CommonEngine` →
+`AngularNodeAppEngine`, import paths moving between `@angular/ssr` and
+`@angular/ssr/node`, etc.). Hand-writing and maintaining these files ourselves would mean
+maintaining a duplicate of fast-moving framework internals that goes stale every Angular
+release. Instead:
+
+- **New contract field added: `postGenerateCommands`** (documented in
+  `BUNDLE-CONTRACT.md`) — an array of shell commands `generate.js` must run after
+  merging bundle files but before the final commit/push. `ssr`'s is
+  `["ng add @angular/ssr --skip-confirmation"]` — the real Angular CLI schematic, always
+  matched to whatever Angular version is actually installed.
+- **This surfaces a hard prerequisite for `generate.js` that must be resolved:**
+  `postGenerateCommands` assumes an actual Angular CLI project already exists (an
+  `angular.json`, a real `package.json`, `src/` structure) before it can run `ng add`.
+  **But `base/` currently contains only `CLAUDE.md` + `.claude/` — no actual Angular
+  skeleton.** This was a known gap noted informally earlier; this bundle makes it
+  concrete and blocking. `generate.js`'s first real step must be running `ng new
+  <project> --skip-install --defaults` (or equivalent) to produce a real Angular
+  workspace, and only then layering `base/.claude/` + selected bundles + running any
+  `postGenerateCommands` on top. **This is now an explicit, required first step in
+  `generate.js`'s spec below — not implicit.**
+- `ssr`'s `settings.fragment.json` protects `server.ts` and `app.config.server.ts`
+  (genuinely set-once, CLI-generated bootstrap) but **deliberately leaves
+  `app.routes.server.ts` editable** — unlike previous "protect the shared mechanism"
+  calls, this file is expected to be routinely extended (one entry per new route,
+  choosing a `RenderMode`), so protecting it would block legitimate, expected work. This
+  is the same "which parts of a shared file are truly set-once vs. routinely edited"
+  judgment as the `oauth.config.ts` isolation, applied in the opposite direction —
+  recognizing when a file should stay open rather than assuming more protection is
+  always safer.
+
+All JSON validated with `jq empty` (6/6 valid). No `.ts` files in this bundle — none are
+shipped by design.
+
+## 12. GitHub repo set up (session 4)
 
 The generator project itself (not the generated client repos — this tool) now lives at
 `https://github.com/Gopalakrishna-Ratnala/boilerplate-generator`, branch `main`. Pushed
@@ -346,31 +389,54 @@ user to `git pull` in VS Code to review.**
 
 ---
 
-## 12. Immediate next step (where to resume)
+## 13. Immediate next step (where to resume) — all bundles done, `generate.js` is next
 
-Build the last bundle — `deploy-target` (SPA vs. SSR) — same rigor as prior bundles:
-1. Follow `bundles/BUNDLE-CONTRACT.md` exactly, including `knownIssues`/`requires` when
-   applicable.
-2. Check any real package version (and peer dependencies) against the live npm
-   registry, not memory.
-3. Syntax-check every `.ts` file with `tsc --noEmit`; if the bundle has a cross-bundle
-   file dependency (importing from another axis's files), **test the actual merge**,
-   not just the bundle in isolation (see `roles` bundle's approach above).
-4. Validate every `.json` with `jq empty`.
-5. If a real, unresolved compatibility/design trade-off or cross-bundle coupling
-   surfaces, ask the user rather than deciding unilaterally.
-6. Push to GitHub after the bundle is done and tested.
+All 5 fixed-axis bundles are complete. **`scripts/generate.js` is the only remaining
+piece before the Claude Code skill can wrap it.** Its required steps, in order, based on
+everything discovered while building the bundles:
 
-After `deploy-target`: build `scripts/generate.js`. It must, at minimum:
-- Read all 5 axes' selections, merge `base/` + each selected bundle's `deps.fragment.json` /
-  `settings.fragment.json` / `rules/*.md` / `files/` into a fresh directory.
-- **Validate every selected bundle's `requires` field against the full selection before
-  generating anything** — refuse clearly on a mismatch (e.g. `roles: rbac` + `auth: none`)
-  rather than generating an inconsistent repo. This is a hard requirement, not a nice-to-have.
-- Surface any selected bundle's `knownIssues` to the user/developer at generation time.
-- Check for `jq` as a prerequisite (hooks depend on it).
-- `npm install`, `git init`, commit, push to the user-provided empty repo via `GITHUB_TOKEN`.
+1. **Check for `jq`** as a prerequisite (the hooks require it at runtime) — fail early
+   with a clear message if missing, don't generate a repo whose hooks silently no-op.
+2. **Validate the full selection before generating anything:**
+   - Check every selected bundle's `requires` field (contract, §6/§10) against the rest
+     of the selection — refuse clearly on a mismatch (e.g. `roles: rbac` + `auth: none`).
+   - Surface every selected bundle's `knownIssues` field to the user/developer (there
+     are two real ones right now: `state/ngrx-signalstore`'s Angular-version peer-dep
+     mismatch, and `deploy-target/ssr`'s CLI-schematic dependency).
+3. **Scaffold a real Angular CLI workspace first** — `ng new <project> --skip-install
+   --defaults` (or equivalent flags for standalone/zoneless per the locked constants in
+   `base/CLAUDE.md`) — **before** copying anything from `base/` or `bundles/`. This is a
+   hard prerequisite surfaced by building `deploy-target/ssr` (§11) — there is no real
+   Angular project to layer bundles onto otherwise.
+4. Copy `base/CLAUDE.md` (with `{{PLACEHOLDER}}` tokens filled in) and `base/.claude/`
+   into the new workspace.
+5. For each of the 5 selected bundles: merge `deps.fragment.json` into `package.json`,
+   merge `settings.fragment.json`'s arrays into `.claude/settings.json`'s corresponding
+   arrays, copy `rules/<axis>.md` into `.claude/rules/`, copy `files/` into the workspace
+   (mirroring paths as-is).
+6. Run any selected bundle's `postGenerateCommands` (currently only
+   `deploy-target/ssr`) now that a real workspace + base config exists.
+7. `npm install`.
+8. `git init`, commit, `git remote add origin <user-provided-url>`, push — using
+   `GITHUB_TOKEN` from the environment, never logged (same pattern already proven
+   working for this generator project's own repo, §12).
 
-Then the `new-angular-project` Claude Code skill (conversational wrapper), then draft
-Case 2 (non-technical client) question phrasing.
+After `generate.js`: build the `new-angular-project` Claude Code skill (conversational
+wrapper — asks the Case 1/Case 2 questions, collects the repo URL, then just calls
+`generate.js` with flags; the skill itself does no file assembly, per the
+deterministic-core decision in §2). Then draft Case 2 (non-technical client) question
+phrasing (§5 — still not started).
+
+**Process reminders that held up across all 5 bundles, carry into `generate.js`:**
+- Verify real package versions (and peer dependencies) against the live npm registry,
+  never from memory.
+- Test at the level the code actually operates — `generate.js` should be tested by
+  actually running it end-to-end on at least one full combination of selections, not
+  just unit-testing pieces in isolation (same principle as the `roles`+`auth` merge-test
+  in §10).
+- When a real design tension or cross-bundle coupling surfaces, ask the user rather than
+  deciding unilaterally — this happened three times this session (`ngrx-signalstore`
+  Angular version, `rbac`/`auth` coupling, implicitly in the `ssr` schematic decision)
+  and should continue.
+- Push to GitHub after `generate.js` is done and tested.
 

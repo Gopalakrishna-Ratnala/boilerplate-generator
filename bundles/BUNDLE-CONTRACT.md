@@ -40,6 +40,16 @@ against every bundle's `requires` before generating anything, and refuse with a 
 message rather than generating an inconsistent repo. Omit the field when an option has
 no cross-axis dependency.
 
+`postGenerateCommands` is optional: an array of shell commands `generate.js` runs
+**after** merging `files/`/`deps.fragment.json` but **before** the final commit/push —
+e.g. `["ng add @angular/ssr --skip-confirmation"]`. Use this instead of hand-writing
+`files/` for anything the Angular CLI itself scaffolds and keeps in sync with the
+installed Angular version (SSR bootstrap plumbing, schematics-driven setup). Hand-writing
+files that a CLI schematic already generates means maintaining a duplicate of
+fast-moving framework internals that will drift stale — prefer running the real
+schematic. Only use static `files/` for bundle logic that has no CLI schematic
+(everything in `auth`, `data-layer`, `state`, `roles` so far).
+
 ## Rules for every `<axis>.md` inside a bundle option
 
 1. Follows the same section order every time (see `auth/oauth-sso/rules/auth.md` as the
