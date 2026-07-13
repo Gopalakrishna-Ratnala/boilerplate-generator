@@ -105,12 +105,13 @@ boilerplate-generator/
 │           ├── protect-paths.sh
 │           ├── guard-bash.sh
 │           └── format-and-lint.sh
-├── bundles/                       # ❌ NOT YET BUILT
-│   ├── auth/{none, basic-auth, oauth-sso, saml}/
-│   ├── data-layer/{rest, graphql, realtime, mock}/
-│   ├── state/{signals-only, ngrx-signalstore}/
-│   ├── roles/{single-role, rbac}/
-│   └── deploy-target/{spa, ssr}/
+├── bundles/
+│   ├── BUNDLE-CONTRACT.md         # ✅ BUILT — fixed structure every bundle follows
+│   ├── auth/{none, basic-auth, oauth-sso, saml}/           # ✅ BUILT
+│   ├── data-layer/{mock, rest, graphql, realtime}/          # ✅ BUILT
+│   ├── state/{signals-only, ngrx-signalstore}/              # ❌ NOT YET BUILT
+│   ├── roles/{single-role, rbac}/                           # ❌ NOT YET BUILT
+│   └── deploy-target/{spa, ssr}/                            # ❌ NOT YET BUILT
 └── scripts/
     └── generate.js                # ❌ NOT YET BUILT — the deterministic merge+push script
 ```
@@ -185,7 +186,7 @@ Plus, always: "Please provide the empty GitHub repository URL to push to."
 
 ---
 
-## 7. Bundle contract (established this session)
+## 6. Bundle contract (established this session)
 
 Before building any bundle, a fixed structural contract was written to
 `bundles/BUNDLE-CONTRACT.md` — every axis/option must follow it, so `generate.js` can
@@ -204,7 +205,7 @@ Key rule: a bundle's `<axis>.md` describes the **specific choice already made** 
 project ("this project uses X"), not a general tutorial — general Angular/security
 guidance stays in `base/.claude/rules/`.
 
-## 8. `auth` bundle — ✅ built and tested (all 4 options)
+## 7. `auth` bundle — ✅ built and tested (all 4 options)
 
 | Option | Pattern | Frontend deps added | Files added |
 |---|---|---|---|
@@ -242,7 +243,7 @@ guidance stays in `base/.claude/rules/`.
 
 ---
 
-## 10. `data-layer` bundle — ✅ built and tested (all 4 options)
+## 8. `data-layer` bundle — ✅ built and tested (all 4 options)
 
 | Option | Pattern | Deps added (all versions checked live on npm registry) | Files added |
 |---|---|---|---|
@@ -258,12 +259,19 @@ the latest *stable 16.x* instead (`16.14.2`) and pinned that. **Lesson for futur
 bundles: when adding a dependency that has peer dependencies, check the peer dependency
 range too, not just the dependency's own latest version.**
 
+**Trade-off flagged to user, not yet resolved:** the `realtime` option locks the
+frontend to **Socket.IO specifically** — it only works if the backend also runs
+Socket.IO (not plain WebSocket, not SignalR). Reasonable default (handles
+reconnection/fallback automatically, most common JS-ecosystem choice), but if backends
+often differ across client projects, this bundle may need a variant (e.g.
+`realtime-native-ws`) later.
+
 Same validation discipline as `auth`: every JSON fragment validated with `jq empty`
 (12/12 valid), every `.ts` file syntax-checked with `tsc --noEmit` (only expected
 "implicit any" noise from `rxjs`/`@angular/common/http` types not being installed in the
 bare test sandbox — confirmed by checking `node_modules` directly, not assumed).
 
-## 11. GitHub repo set up (session 4)
+## 9. GitHub repo set up (session 4)
 
 The generator project itself (not the generated client repos — this tool) now lives at
 `https://github.com/Gopalakrishna-Ratnala/boilerplate-generator`, branch `main`. Pushed
@@ -273,7 +281,7 @@ user to `git pull` in VS Code to review.**
 
 ---
 
-## 12. Immediate next step (where to resume)
+## 10. Immediate next step (where to resume)
 
 Build the remaining 3 bundles — `state` → `roles` → `deploy-target` — same rigor as
 `auth`/`data-layer`:

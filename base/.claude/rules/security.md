@@ -19,8 +19,10 @@
 - `angular.json`
 - `package-lock.json` / `yarn.lock` / `pnpm-lock.yaml`
 - `.env`, `.env.*`, anything under `secrets/`
+- `src/environments/**` (per-environment config — API URLs, feature flags, keys —
+  set once by a developer per environment; not something to guess or "fill in")
 - `.github/**` (CI/CD)
-- `.claude/settings.json`, `.claude/rules/**` (this guardrail system itself)
+- `.claude/settings.json`, `.claude/rules/**`, `.claude/hooks/**` (this guardrail system itself)
 - `tsconfig*.json` (strictness must not be loosened)
 
 These are enforced by `deny` rules in `.claude/settings.json`. If a tool call is blocked
