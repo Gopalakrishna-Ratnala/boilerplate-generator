@@ -4,9 +4,13 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-13 (session 3)
-**Status:** `base/` layer built and tested. Bundle contract defined. `auth` bundle
-(all 4 options) built and tested. Remaining 4 bundles not yet started.
+**Last updated:** 2026-07-13 (session 4)
+**Status:** `base/` layer + `auth` bundle (session 3) + `data-layer` bundle (session 4)
+built and tested. Project is now pushed to GitHub:
+`https://github.com/Gopalakrishna-Ratnala/boilerplate-generator` (branch `main`). Push
+after every meaningful change going forward; user pulls in VS Code to review.
+Remaining: `state`, `roles`, `deploy-target` bundles, then `generate.js`, then the
+Claude Code skill, then Case 2 question phrasing.
 
 ---
 
@@ -238,19 +242,51 @@ guidance stays in `base/.claude/rules/`.
 
 ---
 
-## 9. Immediate next step (where to resume)
+## 10. `data-layer` bundle — ✅ built and tested (all 4 options)
 
-Build the remaining 4 bundles, same rigor as `auth`, in this order (roughly
-risk-weighted): `data-layer` → `state` → `roles` → `deploy-target`. Each should:
+| Option | Pattern | Deps added (all versions checked live on npm registry) | Files added |
+|---|---|---|---|
+| `mock` | In-memory fixtures wrapped with a simulated-delay helper | none | `shared/services/mock-response.ts` |
+| `rest` | HttpClient via a shared `ApiService`, centralized error interceptor | none | `core/config/api.config.ts`, `core/services/api.service.ts`, `core/interceptors/error.interceptor.ts` |
+| `graphql` | Apollo Angular | `apollo-angular@14.1.0`, `@apollo/client@4.2.6`, `graphql@16.14.2` | `core/config/graphql.config.ts` |
+| `realtime` | Single shared socket via `socket.io-client`, signal-based connection state | `socket.io-client@4.8.3` | `core/config/realtime.config.ts`, `core/services/realtime.service.ts` |
+
+**Notable catch this bundle:** `apollo-angular@14.1.0`'s peer dependency requires
+`graphql ^16.0.0`, but the absolute latest `graphql` on npm is `17.0.2`. Pinning latest
+would have broken peer-dependency resolution on `npm install`. Checked the registry for
+the latest *stable 16.x* instead (`16.14.2`) and pinned that. **Lesson for future
+bundles: when adding a dependency that has peer dependencies, check the peer dependency
+range too, not just the dependency's own latest version.**
+
+Same validation discipline as `auth`: every JSON fragment validated with `jq empty`
+(12/12 valid), every `.ts` file syntax-checked with `tsc --noEmit` (only expected
+"implicit any" noise from `rxjs`/`@angular/common/http` types not being installed in the
+bare test sandbox — confirmed by checking `node_modules` directly, not assumed).
+
+## 11. GitHub repo set up (session 4)
+
+The generator project itself (not the generated client repos — this tool) now lives at
+`https://github.com/Gopalakrishna-Ratnala/boilerplate-generator`, branch `main`. Pushed
+via a fine-grained PAT (Contents: read/write only), passed as an env var, never
+committed to git config or logged. **Push again after every meaningful change; tell the
+user to `git pull` in VS Code to review.**
+
+---
+
+## 12. Immediate next step (where to resume)
+
+Build the remaining 3 bundles — `state` → `roles` → `deploy-target` — same rigor as
+`auth`/`data-layer`:
 1. Follow `bundles/BUNDLE-CONTRACT.md` exactly.
-2. Check any real package version against the live npm registry, not memory.
-3. Syntax-check every `.ts` file with `tsc --noEmit` and validate every `.json` with
-   `jq empty` before being called done.
-4. Isolate any sensitive config from a shared/editable file into its own protectable
-   file, per the pattern established in `oauth-sso`.
+2. Check any real package version (and its peer dependencies) against the live npm
+   registry, not memory.
+3. Syntax-check every `.ts` file with `tsc --noEmit`, validate every `.json` with
+   `jq empty`.
+4. Isolate any sensitive/shared config into its own protectable file when it would
+   otherwise sit inside a file that also needs to stay editable (the `oauth.config.ts`
+   pattern).
+5. Push to GitHub after the bundle is done and tested.
 
-After all 5 bundles: build `scripts/generate.js` (the deterministic merge+push script —
-note it needs to check for `jq` as a prerequisite, per §4's known dependency), then the
-`new-angular-project` Claude Code skill, then draft Case 2 (non-technical client)
-question phrasing.
+After all 5 bundles: build `scripts/generate.js`, then the `new-angular-project` Claude
+Code skill, then draft Case 2 (non-technical client) question phrasing.
 

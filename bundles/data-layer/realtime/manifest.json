@@ -1,0 +1,7 @@
+{
+  "axis": "data-layer",
+  "option": "realtime",
+  "label": "Real-time (WebSocket)",
+  "description": "Frontend maintains a live socket connection for real-time updates, via socket.io-client, wrapped in a shared signal-based service.",
+  "claudeMdSummaryLine": "Data layer: real-time (socket.io-client, shared RealtimeService)"
+}

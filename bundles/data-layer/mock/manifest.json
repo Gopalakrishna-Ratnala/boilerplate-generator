@@ -1,0 +1,7 @@
+{
+  "axis": "data-layer",
+  "option": "mock",
+  "label": "Static / mock data",
+  "description": "No backend yet — features read from static in-memory fixtures shaped like the eventual real API response.",
+  "claudeMdSummaryLine": "Data layer: static/mock (no backend yet)"
+}

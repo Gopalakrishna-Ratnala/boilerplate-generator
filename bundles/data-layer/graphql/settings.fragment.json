@@ -1,0 +1,6 @@
+{
+  "deny": [
+    "Edit(./src/app/core/config/graphql.config.ts)",
+    "Write(./src/app/core/config/graphql.config.ts)"
+  ]
+}
