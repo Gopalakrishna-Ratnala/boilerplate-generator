@@ -4,13 +4,13 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-13 (session 4)
-**Status:** `base/` layer + `auth` bundle (session 3) + `data-layer` bundle (session 4)
-built and tested. Project is now pushed to GitHub:
+**Last updated:** 2026-07-13 (session 5)
+**Status:** `base/` layer + `auth` bundle (session 3) + `data-layer` bundle (session 4) +
+`state` bundle (session 5) built and tested. Project pushed to GitHub:
 `https://github.com/Gopalakrishna-Ratnala/boilerplate-generator` (branch `main`). Push
 after every meaningful change going forward; user pulls in VS Code to review.
-Remaining: `state`, `roles`, `deploy-target` bundles, then `generate.js`, then the
-Claude Code skill, then Case 2 question phrasing.
+Remaining: `roles`, `deploy-target` bundles, then `generate.js`, then the Claude Code
+skill, then Case 2 question phrasing.
 
 ---
 
@@ -109,7 +109,7 @@ boilerplate-generator/
 │   ├── BUNDLE-CONTRACT.md         # ✅ BUILT — fixed structure every bundle follows
 │   ├── auth/{none, basic-auth, oauth-sso, saml}/           # ✅ BUILT
 │   ├── data-layer/{mock, rest, graphql, realtime}/          # ✅ BUILT
-│   ├── state/{signals-only, ngrx-signalstore}/              # ❌ NOT YET BUILT
+│   ├── state/{signals-only, ngrx-signalstore}/               # ✅ BUILT
 │   ├── roles/{single-role, rbac}/                           # ❌ NOT YET BUILT
 │   └── deploy-target/{spa, ssr}/                            # ❌ NOT YET BUILT
 └── scripts/
@@ -271,7 +271,33 @@ Same validation discipline as `auth`: every JSON fragment validated with `jq emp
 "implicit any" noise from `rxjs`/`@angular/common/http` types not being installed in the
 bare test sandbox — confirmed by checking `node_modules` directly, not assumed).
 
-## 9. GitHub repo set up (session 4)
+## 9. `state` bundle — ✅ built and tested (both options)
+
+| Option | Pattern | Deps added | Files added |
+|---|---|---|---|
+| `signals-only` | Plain `signal()`/`computed()` in per-feature services, no library | none | none (deliberately — pattern is conventional, enforced via rules only, like `auth/none`) |
+| `ngrx-signalstore` | `signalStore()` per feature via `@ngrx/signals` | `@ngrx/signals@^21.1.1` | none (each feature owns its own store file; no single shared mechanism to protect) |
+
+**Real compatibility issue found and NOT silently resolved:** `@ngrx/signals@21.1.1`'s
+peer dependency allows only `@angular/core ^21.0.0`, but this project's locked base
+stack is "latest stable Angular" — currently `22.0.6` (verified live). Selecting
+`ngrx-signalstore` will hit a peer-dependency conflict against the project's own locked
+Angular version. **Asked the user directly rather than deciding unilaterally — decision:
+flag it in docs and let a developer decide per-project** (not: auto-pin Angular down,
+not: force-install with overrides). This is now documented in
+`ngrx-signalstore/manifest.json`'s new `knownIssues` field and at the top of its
+`rules/state.md`. **`knownIssues` was added as an official optional field in
+`bundles/BUNDLE-CONTRACT.md`** — reusable for any future bundle with a similar
+real-but-unresolved compatibility caveat; `generate.js` should surface these to the user
+rather than silently proceeding.
+
+Same validation discipline: both `deps.fragment.json`/`manifest.json`/
+`settings.fragment.json` pairs validated with `jq empty` (6/6 valid). No `.ts` files in
+this bundle by design, so no `tsc` check applicable — the state bundles are conventions
+enforced through `rules/state.md`, not a shared file to protect (same shape as
+`auth/none`).
+
+## 10. GitHub repo set up (session 4)
 
 The generator project itself (not the generated client repos — this tool) now lives at
 `https://github.com/Gopalakrishna-Ratnala/boilerplate-generator`, branch `main`. Pushed
@@ -281,11 +307,12 @@ user to `git pull` in VS Code to review.**
 
 ---
 
-## 10. Immediate next step (where to resume)
+## 11. Immediate next step (where to resume)
 
-Build the remaining 3 bundles — `state` → `roles` → `deploy-target` — same rigor as
-`auth`/`data-layer`:
-1. Follow `bundles/BUNDLE-CONTRACT.md` exactly.
+Build the remaining 2 bundles — `roles` → `deploy-target` — same rigor as prior
+bundles:
+1. Follow `bundles/BUNDLE-CONTRACT.md` exactly, including the `knownIssues` manifest
+   field when a real compatibility caveat exists.
 2. Check any real package version (and its peer dependencies) against the live npm
    registry, not memory.
 3. Syntax-check every `.ts` file with `tsc --noEmit`, validate every `.json` with
@@ -293,8 +320,11 @@ Build the remaining 3 bundles — `state` → `roles` → `deploy-target` — sa
 4. Isolate any sensitive/shared config into its own protectable file when it would
    otherwise sit inside a file that also needs to stay editable (the `oauth.config.ts`
    pattern).
-5. Push to GitHub after the bundle is done and tested.
+5. If a real, unresolved compatibility/design trade-off surfaces (like the
+   `ngrx-signalstore` Angular-version mismatch), **ask the user rather than deciding
+   unilaterally** — this has been the pattern all session and should continue.
+6. Push to GitHub after the bundle is done and tested.
 
-After all 5 bundles: build `scripts/generate.js`, then the `new-angular-project` Claude
+After both bundles: build `scripts/generate.js`, then the `new-angular-project` Claude
 Code skill, then draft Case 2 (non-technical client) question phrasing.
 

@@ -1,0 +1,7 @@
+{
+  "axis": "state",
+  "option": "signals-only",
+  "label": "Signals only",
+  "description": "Component-local and simple shared state via plain Angular signals in services. No state management library.",
+  "claudeMdSummaryLine": "State: signals-only (plain services, no state library)"
+}

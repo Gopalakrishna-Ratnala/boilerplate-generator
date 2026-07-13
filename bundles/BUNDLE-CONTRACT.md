@@ -22,7 +22,10 @@ bundles/<axis>/<option>/
   "option": "oauth-sso",
   "label": "OAuth / SSO",
   "description": "One-line description shown back to the user during the conversational Q&A.",
-  "claudeMdSummaryLine": "Auth: OAuth/SSO (short line inserted into the generated CLAUDE.md's 'Selected bundles' list)"
+  "claudeMdSummaryLine": "Auth: OAuth/SSO (short line inserted into the generated CLAUDE.md's 'Selected bundles' list)",
+  "knownIssues": [
+    "Optional. Use when a bundle has a real, currently-unresolved compatibility caveat (e.g. a dependency's peer-dependency range lagging the locked Angular version). generate.js should surface these back to the user/developer at generation time rather than silently proceeding. Omit the field entirely when there's nothing to flag."
+  ]
 }
 ```
 

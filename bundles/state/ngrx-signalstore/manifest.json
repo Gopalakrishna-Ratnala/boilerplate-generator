@@ -1,0 +1,10 @@
+{
+  "axis": "state",
+  "option": "ngrx-signalstore",
+  "label": "NgRx SignalStore",
+  "description": "Signal-first feature stores via @ngrx/signals for state shared across many components with non-trivial logic.",
+  "claudeMdSummaryLine": "State: NgRx SignalStore (@ngrx/signals) — see .claude/rules/state.md for a known Angular-version compatibility note",
+  "knownIssues": [
+    "As of the version pinned in deps.fragment.json, @ngrx/signals's peerDependencies require @angular/core ^21.0.0. This project's locked base stack is the latest stable Angular (currently 22.x). This is a REAL, currently-unresolved peer-dependency conflict, not a hypothetical one — verify both versions' current peer-dependency ranges again at generation time (they may have converged since this was written) before assuming it's still a problem. If still mismatched: this is a per-project developer decision (e.g. accept an npm warning if the mismatch is compatible in practice, use npm 'overrides' knowingly, or pin Angular back for this project) — the generator does not decide this for you and should surface this note rather than silently installing."
+  ]
+}
