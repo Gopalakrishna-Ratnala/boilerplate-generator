@@ -1,0 +1,7 @@
+{
+  "axis": "roles",
+  "option": "single-role",
+  "label": "Single role",
+  "description": "Every logged-in user has the same permissions. No role-based access control.",
+  "claudeMdSummaryLine": "Roles: single role (no RBAC — everyone sees the same thing)"
+}

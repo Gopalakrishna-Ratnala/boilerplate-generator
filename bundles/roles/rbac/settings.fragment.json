@@ -1,0 +1,10 @@
+{
+  "deny": [
+    "Edit(./src/app/core/config/roles.config.ts)",
+    "Edit(./src/app/core/guards/role.guard.ts)",
+    "Edit(./src/app/core/directives/has-role.directive.ts)",
+    "Write(./src/app/core/config/roles.config.ts)",
+    "Write(./src/app/core/guards/role.guard.ts)",
+    "Write(./src/app/core/directives/has-role.directive.ts)"
+  ]
+}

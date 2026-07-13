@@ -6,6 +6,8 @@ export interface CurrentUser {
   id: string;
   email: string;
   name: string;
+  /** Present only if this project's roles bundle is 'rbac'. Empty/absent otherwise. */
+  roles?: string[];
 }
 
 /**

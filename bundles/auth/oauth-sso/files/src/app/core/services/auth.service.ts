@@ -6,6 +6,8 @@ export interface CurrentUser {
   id: string;
   email: string;
   name: string;
+  /** Present only if this project's roles bundle is 'rbac'. Empty/absent otherwise. */
+  roles?: string[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -40,14 +42,16 @@ export class AuthService {
   }
 
   private loadUserProfile(): void {
-    const claims = this.oauthService.getIdentityClaims() as Record<string, string> | null;
+    const claims = this.oauthService.getIdentityClaims() as Record<string, unknown> | null;
     if (!claims) {
       return;
     }
+    const rawRoles = claims['roles'];
     this.currentUserSignal.set({
-      id: claims['sub'],
-      email: claims['email'],
-      name: claims['name'],
+      id: claims['sub'] as string,
+      email: claims['email'] as string,
+      name: claims['name'] as string,
+      roles: Array.isArray(rawRoles) ? (rawRoles as string[]) : undefined,
     });
   }
 }

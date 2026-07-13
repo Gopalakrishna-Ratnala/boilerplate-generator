@@ -1,0 +1,10 @@
+{
+  "axis": "roles",
+  "option": "rbac",
+  "label": "Role-based access control",
+  "description": "Multiple roles with different access to routes/UI. Requires an auth bundle that produces a logged-in user.",
+  "claudeMdSummaryLine": "Roles: RBAC (role guard + *hasRole directive, role source: CurrentUser.roles)",
+  "requires": {
+    "auth": ["basic-auth", "oauth-sso", "saml"]
+  }
+}

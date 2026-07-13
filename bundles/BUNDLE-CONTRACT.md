@@ -25,9 +25,20 @@ bundles/<axis>/<option>/
   "claudeMdSummaryLine": "Auth: OAuth/SSO (short line inserted into the generated CLAUDE.md's 'Selected bundles' list)",
   "knownIssues": [
     "Optional. Use when a bundle has a real, currently-unresolved compatibility caveat (e.g. a dependency's peer-dependency range lagging the locked Angular version). generate.js should surface these back to the user/developer at generation time rather than silently proceeding. Omit the field entirely when there's nothing to flag."
-  ]
+  ],
+  "requires": {
+    "auth": ["basic-auth", "oauth-sso", "saml"]
+  }
 }
 ```
+
+`requires` is optional. Use it when an option on one axis only makes sense combined with
+specific options on another axis (e.g. `roles: rbac` needs *some* authenticated user to
+attach a role to — it's incompatible with `auth: none`). Shape: `{ "<axis>":
+["<allowed-option>", ...] }`. `generate.js` should validate the user's full selection
+against every bundle's `requires` before generating anything, and refuse with a clear
+message rather than generating an inconsistent repo. Omit the field when an option has
+no cross-axis dependency.
 
 ## Rules for every `<axis>.md` inside a bundle option
 

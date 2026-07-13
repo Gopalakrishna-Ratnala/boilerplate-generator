@@ -4,13 +4,12 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-13 (session 5)
-**Status:** `base/` layer + `auth` bundle (session 3) + `data-layer` bundle (session 4) +
-`state` bundle (session 5) built and tested. Project pushed to GitHub:
-`https://github.com/Gopalakrishna-Ratnala/boilerplate-generator` (branch `main`). Push
-after every meaningful change going forward; user pulls in VS Code to review.
-Remaining: `roles`, `deploy-target` bundles, then `generate.js`, then the Claude Code
-skill, then Case 2 question phrasing.
+**Last updated:** 2026-07-13 (session 6)
+**Status:** `base/` layer + `auth` bundle + `data-layer` bundle + `state` bundle +
+`roles` bundle all built and tested. Remaining: `deploy-target` bundle, then
+`generate.js`, then the Claude Code skill, then Case 2 question phrasing. Pushed to
+GitHub: `https://github.com/Gopalakrishna-Ratnala/boilerplate-generator` (branch
+`main`).
 
 ---
 
@@ -110,7 +109,7 @@ boilerplate-generator/
 │   ├── auth/{none, basic-auth, oauth-sso, saml}/           # ✅ BUILT
 │   ├── data-layer/{mock, rest, graphql, realtime}/          # ✅ BUILT
 │   ├── state/{signals-only, ngrx-signalstore}/               # ✅ BUILT
-│   ├── roles/{single-role, rbac}/                           # ❌ NOT YET BUILT
+│   ├── roles/{single-role, rbac}/                           # ✅ BUILT
 │   └── deploy-target/{spa, ssr}/                            # ❌ NOT YET BUILT
 └── scripts/
     └── generate.js                # ❌ NOT YET BUILT — the deterministic merge+push script
@@ -297,7 +296,47 @@ this bundle by design, so no `tsc` check applicable — the state bundles are co
 enforced through `rules/state.md`, not a shared file to protect (same shape as
 `auth/none`).
 
-## 10. GitHub repo set up (session 4)
+## 10. `roles` bundle — ✅ built and tested (both options), including a real cross-bundle fix
+
+| Option | Pattern | Deps added | Files added |
+|---|---|---|---|
+| `single-role` | Everyone has identical permissions, no role code | none | none (deliberately) |
+| `rbac` | Route + UI gating by role, source of truth is `CurrentUser.roles` | none (plain Angular) | `core/config/roles.config.ts`, `core/guards/role.guard.ts`, `core/directives/has-role.directive.ts` |
+
+**Real cross-bundle coupling problem found and fixed, not silently patched over:**
+`rbac` needs to read the logged-in user's role, but that data comes from whichever
+`auth` bundle was selected — and the `CurrentUser` interfaces built in session 3 had no
+`roles` field. Per `BUNDLE-CONTRACT.md`'s own guidance ("if two bundles on different
+axes could ever touch the same file, that's a conflict to resolve at generator-design
+time"), this was resolved at design time:
+
+- Went back and added an **optional** `roles?: string[]` field to `CurrentUser` in all
+  three authenticated `auth` options (`basic-auth`, `oauth-sso`, `saml`) — harmless/unused
+  when `roles: single-role` is selected, required plumbing when `roles: rbac` is
+  selected. `oauth-sso`'s `loadUserProfile()` was also updated to map a `roles` claim
+  into it (with a documented caveat: the claim name varies by identity provider — a
+  developer may need to adjust it once the real IdP is known).
+- **`rbac: auth: none` is a nonsensical combination** (RBAC needs *someone* to attach a
+  role to). Rather than build generate.js-time validation logic now (generate.js
+  doesn't exist yet), formalized this as a new **optional `requires` field** in
+  `bundles/BUNDLE-CONTRACT.md`: `{ "requires": { "auth": ["basic-auth", "oauth-sso",
+  "saml"] } }`. `generate.js` must validate every bundle's `requires` against the full
+  selection before generating anything, and refuse with a clear message on a mismatch
+  rather than generating an inconsistent repo. **This is now a required check for
+  `generate.js`, not optional — added explicitly to its own to-do below.**
+
+**Testing went further than previous bundles, appropriately** — since `rbac`'s files
+(`role.guard.ts`, `has-role.directive.ts`) import `AuthService` from a path that only
+exists once merged with an `auth` bundle, tested the actual merge (not just `rbac` in
+isolation) against **all three** valid `auth` pairings (`basic-auth`, `oauth-sso`,
+`saml`) by physically copying both bundles' `files/` into one temp directory and running
+`tsc` over the combined tree. All three passed with only the same expected
+missing-module noise. **This merge-testing pattern should be repeated for any future
+bundle with a real cross-bundle file dependency.**
+
+All JSON validated with `jq empty` (6/6 valid).
+
+## 11. GitHub repo set up (session 4)
 
 The generator project itself (not the generated client repos — this tool) now lives at
 `https://github.com/Gopalakrishna-Ratnala/boilerplate-generator`, branch `main`. Pushed
@@ -307,24 +346,31 @@ user to `git pull` in VS Code to review.**
 
 ---
 
-## 11. Immediate next step (where to resume)
+## 12. Immediate next step (where to resume)
 
-Build the remaining 2 bundles — `roles` → `deploy-target` — same rigor as prior
-bundles:
-1. Follow `bundles/BUNDLE-CONTRACT.md` exactly, including the `knownIssues` manifest
-   field when a real compatibility caveat exists.
-2. Check any real package version (and its peer dependencies) against the live npm
+Build the last bundle — `deploy-target` (SPA vs. SSR) — same rigor as prior bundles:
+1. Follow `bundles/BUNDLE-CONTRACT.md` exactly, including `knownIssues`/`requires` when
+   applicable.
+2. Check any real package version (and peer dependencies) against the live npm
    registry, not memory.
-3. Syntax-check every `.ts` file with `tsc --noEmit`, validate every `.json` with
-   `jq empty`.
-4. Isolate any sensitive/shared config into its own protectable file when it would
-   otherwise sit inside a file that also needs to stay editable (the `oauth.config.ts`
-   pattern).
-5. If a real, unresolved compatibility/design trade-off surfaces (like the
-   `ngrx-signalstore` Angular-version mismatch), **ask the user rather than deciding
-   unilaterally** — this has been the pattern all session and should continue.
+3. Syntax-check every `.ts` file with `tsc --noEmit`; if the bundle has a cross-bundle
+   file dependency (importing from another axis's files), **test the actual merge**,
+   not just the bundle in isolation (see `roles` bundle's approach above).
+4. Validate every `.json` with `jq empty`.
+5. If a real, unresolved compatibility/design trade-off or cross-bundle coupling
+   surfaces, ask the user rather than deciding unilaterally.
 6. Push to GitHub after the bundle is done and tested.
 
-After both bundles: build `scripts/generate.js`, then the `new-angular-project` Claude
-Code skill, then draft Case 2 (non-technical client) question phrasing.
+After `deploy-target`: build `scripts/generate.js`. It must, at minimum:
+- Read all 5 axes' selections, merge `base/` + each selected bundle's `deps.fragment.json` /
+  `settings.fragment.json` / `rules/*.md` / `files/` into a fresh directory.
+- **Validate every selected bundle's `requires` field against the full selection before
+  generating anything** — refuse clearly on a mismatch (e.g. `roles: rbac` + `auth: none`)
+  rather than generating an inconsistent repo. This is a hard requirement, not a nice-to-have.
+- Surface any selected bundle's `knownIssues` to the user/developer at generation time.
+- Check for `jq` as a prerequisite (hooks depend on it).
+- `npm install`, `git init`, commit, push to the user-provided empty repo via `GITHUB_TOKEN`.
+
+Then the `new-angular-project` Claude Code skill (conversational wrapper), then draft
+Case 2 (non-technical client) question phrasing.
 
