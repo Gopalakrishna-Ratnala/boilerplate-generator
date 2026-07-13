@@ -4,13 +4,12 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-13 (session 8)
-**Status:** All 5 fixed-axis bundles complete AND cross-checked in a full repo audit
-(§13) — 2 real protection-consistency gaps found and fixed. `base/` layer built and
-hardened. Next: `scripts/generate.js` (does not exist yet — this is the biggest
-remaining piece), then the Claude Code skill, then Case 2 question phrasing. Pushed to
-GitHub: `https://github.com/Gopalakrishna-Ratnala/boilerplate-generator` (branch
-`main`).
+**Last updated:** 2026-07-13 (session 9)
+**Status:** All 5 fixed-axis bundles complete and audited. **`scripts/generate.js` built
+and genuinely end-to-end tested — 2 real bugs found and fixed during testing, not
+theoretical.** Remaining: the `new-angular-project` Claude Code skill (conversational
+wrapper around `generate.js`), then Case 2 question phrasing. Pushed to GitHub:
+`https://github.com/Gopalakrishna-Ratnala/boilerplate-generator` (branch `main`).
 
 ---
 
@@ -113,7 +112,7 @@ boilerplate-generator/
 │   ├── roles/{single-role, rbac}/                           # ✅ BUILT
 │   └── deploy-target/{spa, ssr}/                            # ✅ BUILT
 └── scripts/
-    └── generate.js                # ❌ NOT YET BUILT — the deterministic merge+push script
+    └── generate.js                # ✅ BUILT AND END-TO-END TESTED (session 9)
 ```
 
 ---
@@ -443,54 +442,98 @@ several bundles exist catches inconsistencies that only show up when comparing b
 against each other, not when reviewing one at a time. Worth repeating this kind of full
 audit again after `generate.js` exists and after the Claude Code skill wraps it.
 
-## 14. Immediate next step (where to resume) — all bundles done, reviewed, `generate.js` is next
+## 14. `scripts/generate.js` — ✅ built and genuinely end-to-end tested (session 9)
 
-All 5 fixed-axis bundles are complete. **`scripts/generate.js` is the only remaining
-piece before the Claude Code skill can wrap it.** Its required steps, in order, based on
-everything discovered while building the bundles:
+**A sandbox constraint shaped the testing approach, documented honestly:** this
+sandbox's Node (`v22.22.2`) is one patch version short of what Angular CLI v22 requires
+(`v22.22.3+`) — a hard engine check. `ng new`/`ng add` could still run here via `npx`
+resolving a compatible Angular version automatically (it resolved **v21.2.19**, not the
+true npm "latest" of 22.0.6) — enough to genuinely exercise every code path in
+`generate.js` (scaffold → merge → collision-check → post-generate commands → npm install
+→ git → push), just not against the exact Angular version a real machine with correct
+Node would get. **Anyone running this on a real machine should verify against actual
+Angular 22 once, since this was never tested against that exact version.** Push
+mechanics were tested against a local bare git repo (`git init --bare`) instead of real
+GitHub, plus a standalone unit test of the token-injection/redaction string logic — both
+passed; real GitHub push was already proven working manually earlier in this session
+(§12) using the identical code pattern.
 
-1. **Check for `jq`** as a prerequisite (the hooks require it at runtime) — fail early
-   with a clear message if missing, don't generate a repo whose hooks silently no-op.
-2. **Validate the full selection before generating anything:**
-   - Check every selected bundle's `requires` field (contract, §6/§10) against the rest
-     of the selection — refuse clearly on a mismatch (e.g. `roles: rbac` + `auth: none`).
-   - Surface every selected bundle's `knownIssues` field to the user/developer (there
-     are two real ones right now: `state/ngrx-signalstore`'s Angular-version peer-dep
-     mismatch, and `deploy-target/ssr`'s CLI-schematic dependency).
-3. **Scaffold a real Angular CLI workspace first** — `ng new <project> --skip-install
-   --defaults` (or equivalent flags for standalone/zoneless per the locked constants in
-   `base/CLAUDE.md`) — **before** copying anything from `base/` or `bundles/`. This is a
-   hard prerequisite surfaced by building `deploy-target/ssr` (§11) — there is no real
-   Angular project to layer bundles onto otherwise.
-4. Copy `base/CLAUDE.md` (with `{{PLACEHOLDER}}` tokens filled in) and `base/.claude/`
-   into the new workspace.
-5. For each of the 5 selected bundles: merge `deps.fragment.json` into `package.json`,
-   merge `settings.fragment.json`'s arrays into `.claude/settings.json`'s corresponding
-   arrays, copy `rules/<axis>.md` into `.claude/rules/`, copy `files/` into the workspace
-   (mirroring paths as-is).
-6. Run any selected bundle's `postGenerateCommands` (currently only
-   `deploy-target/ssr`) now that a real workspace + base config exists.
-7. `npm install`.
-8. `git init`, commit, `git remote add origin <user-provided-url>`, push — using
-   `GITHUB_TOKEN` from the environment, never logged (same pattern already proven
-   working for this generator project's own repo, §12).
+**Real bugs found and fixed by actually running the script repeatedly, not by reading
+it and assuming it was correct:**
 
-After `generate.js`: build the `new-angular-project` Claude Code skill (conversational
-wrapper — asks the Case 1/Case 2 questions, collects the repo URL, then just calls
-`generate.js` with flags; the skill itself does no file assembly, per the
-deterministic-core decision in §2). Then draft Case 2 (non-technical client) question
-phrasing (§5 — still not started).
+1. **Path-flattening bug in the bundle-files copier (serious — would have silently
+   corrupted every generated project).** The recursive copy function computed each
+   file's destination path relative to the *current* recursion level instead of the
+   original `files/` root, losing one path segment per directory depth. First test run
+   showed zero files under `src/app/core/` and instead scattered `auth.service.ts`,
+   `api.service.ts`, etc. flat at the project root and in wrongly-shallow folders. Fixed
+   by threading the original root through recursion as a separate, unchanging parameter
+   and always computing relative paths against it. Re-tested and confirmed correct
+   nested placement across 3 different bundle combinations, including the
+   `oauth-sso`+`graphql`+`ngrx-signalstore`+`rbac` combination (6 config/service files
+   correctly placed, zero collisions, `package.json` deps correctly merged with no
+   duplication).
+2. **`--dry-run` didn't actually skip `postGenerateCommands`.** `deploy-target/ssr`'s
+   `ng add @angular/ssr` ran a real, live network install even with `--dry-run=true` —
+   defeating the point of a dry run. Fixed by checking the flag before running
+   post-generate commands, printing what *would* run instead. Confirmed fixed: a
+   second dry-run test showed no `server.ts` created (correctly skipped) vs. the first
+   real run, which genuinely scaffolded `server.ts`, `app.config.server.ts`,
+   `app.routes.server.ts` and updated `angular.json`/`package.json`/`app.config.ts` —
+   a full, successful real-world exercise of the `postGenerateCommands` mechanism.
+3. **Misleading error message on a pre-existing-directory collision.** An early test
+   accidentally re-ran into a directory from a previous test run; the failure was
+   reported as "likely a Node version problem" when the real cause was unrelated
+   (directory already exists). Fixed: `generate.js` now checks for and reports an
+   existing target directory explicitly, before ever invoking `ng new`.
 
-**Process reminders that held up across all 5 bundles, carry into `generate.js`:**
-- Verify real package versions (and peer dependencies) against the live npm registry,
-  never from memory.
-- Test at the level the code actually operates — `generate.js` should be tested by
-  actually running it end-to-end on at least one full combination of selections, not
-  just unit-testing pieces in isolation (same principle as the `roles`+`auth` merge-test
-  in §10).
-- When a real design tension or cross-bundle coupling surfaces, ask the user rather than
-  deciding unilaterally — this happened three times this session (`ngrx-signalstore`
-  Angular version, `rbac`/`auth` coupling, implicitly in the `ssr` schematic decision)
-  and should continue.
-- Push to GitHub after `generate.js` is done and tested.
+**What was verified working, specifically, via real runs (not just code review):**
+- `requires` validation genuinely blocks an invalid combination (`roles: rbac` +
+  `auth: none`) before touching disk — confirmed exit code 1, confirmed no directory
+  created.
+- `knownIssues` warnings genuinely print (confirmed `ngrx-signalstore`'s Angular-version
+  note appears verbatim before scaffolding begins).
+- Collision detection genuinely fires — tested directly with a synthetic scratch
+  scenario (two fake bundles shipping the same file path); correctly refused with a
+  clear message rather than silently overwriting.
+- `.claude/settings.json` deny-array merging is correct across `base/` + 2 bundles at
+  once, with no duplicates, verified by inspecting actual merged JSON in a generated
+  project (not just trusting the merge code).
+- Real `npm install` (467 packages, 0 vulnerabilities) and a real `git push` to a bare
+  repo both completed successfully end-to-end in one full run.
+- Hook scripts' executable permission survives the copy (`chmod 755` explicitly applied
+  after copy, since plain file copy doesn't guarantee mode bits survive).
+
+**Known limitation carried forward, not silently ignored:** `ng new`'s own internal git
+init/commit (which happens automatically as part of the CLI's scaffolding) emitted an
+"Author identity unknown" warning in this sandbox because no global git user is
+configured here. This is expected to be a sandbox-only artifact — any real developer
+machine already has `git config --global user.email/name` set — but if it somehow
+recurs on a real machine, `generate.js`'s own later `git init` + explicit local
+`user.email`/`user.name` config (run unconditionally, before its own commit) is
+unaffected by whatever `ng new` did or didn't manage to commit internally; only one
+commit exists on the `main` branch in every test that was run (confirmed via `git log`
+each time).
+
+## 15. Immediate next step (where to resume) — `generate.js` done, the Claude Code skill is next
+
+Build `.claude/skills/new-angular-project/SKILL.md` — the conversational wrapper:
+1. Asks the 5 fixed-axis questions (Case 1 phrasing exists in §5; Case 2 still not
+   drafted — see below).
+2. Asks the open/cosmetic axis questions (theme, component library shortlist, etc. —
+   never formally drafted this session; still needs a menu, not just "ask freely").
+3. Asks for `--project-name` and `--repo` (the target empty GitHub repo URL).
+4. Calls `node scripts/generate.js` with the corresponding flags — **the skill itself
+   must not hand-assemble any files**; its only job is conversation + dispatch, per the
+   deterministic-core decision in §2.
+5. Surfaces `generate.js`'s own output back to the user as-is (including any
+   `knownIssues` warnings or validation failures) rather than summarizing/hiding them.
+
+After the skill: draft Case 2 (non-technical client) question phrasing — still not
+started, tracked since §5 was written.
+
+**Before considering the whole system done:** run the full audit pattern from §13 one
+more time now that `generate.js` and the skill both exist — cross-bundle consistency
+checks catch different things than component-level testing does, and this has been true
+every time it was tried this session.
 
