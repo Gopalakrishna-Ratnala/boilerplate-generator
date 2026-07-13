@@ -1,3 +1,6 @@
 {
-  "deny": []
+  "deny": [
+    "Edit(./src/app/shared/services/mock-response.ts)",
+    "Write(./src/app/shared/services/mock-response.ts)"
+  ]
 }

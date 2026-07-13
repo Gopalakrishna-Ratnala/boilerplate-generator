@@ -21,9 +21,9 @@ base URL and a consistent `get/post/put/patch/delete` surface. A shared
   `ApiService` so the base URL and request shape stay consistent app-wide. Two
   different HTTP-calling patterns in the same app is exactly the "inconsistent
   architecture" risk this guardrail exists to prevent.
-- **Do not edit** `api.service.ts` or `error.interceptor.ts` — protected by
-  `.claude/settings.json`. Changing the shared mechanism affects every feature that
-  depends on it.
+- **Do not edit** `api.service.ts`, `error.interceptor.ts`, or `api.config.ts` —
+  protected by `.claude/settings.json`. Changing the shared mechanism affects every
+  feature that depends on it.
 - Do not hardcode the API base URL anywhere — it comes from `api.config.ts` /
   `environment.ts`, never a literal string in a feature file.
 - Do not add a second global error-handling mechanism (e.g. a second interceptor doing
@@ -32,7 +32,8 @@ base URL and a consistent `get/post/put/patch/delete` surface. A shared
 
 ## Where the code lives
 
-- `src/app/core/config/api.config.ts` — reads the base URL from `environment.ts`.
+- `src/app/core/config/api.config.ts` — reads the base URL from `environment.ts`
+  (protected).
 - `src/app/core/services/api.service.ts` — shared REST wrapper (protected).
 - `src/app/core/interceptors/error.interceptor.ts` — shared error normalization
   (protected).

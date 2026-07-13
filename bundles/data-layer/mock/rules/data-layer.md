@@ -19,6 +19,9 @@ work the same way they will once a real API exists).
 
 ## What the AI agent must NOT do
 
+- **Do not edit** `mock-response.ts` — protected by `.claude/settings.json`. It's the
+  one shared helper every feature's mock service depends on; changing its signature or
+  behavior affects all of them at once.
 - Do not add `HttpClient` calls to a real endpoint — there is no backend yet. If a task
   seems to need a real API call, that's a sign this project's data-layer bundle
   selection needs revisiting by a developer, not something to work around with a guess
@@ -30,6 +33,6 @@ work the same way they will once a real API exists).
 ## Where the code lives
 
 - `src/app/shared/services/mock-response.ts` — the `mockResponse()` helper (shared,
-  don't duplicate this per feature).
+  protected — don't duplicate this per feature).
 - `src/app/features/<feature>/services/` — each feature's own fixture data + service
   method using `mockResponse()`.

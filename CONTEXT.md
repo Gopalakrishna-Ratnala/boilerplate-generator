@@ -4,12 +4,13 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-13 (session 7)
-**Status:** All 5 fixed-axis bundles complete: `auth`, `data-layer`, `state`, `roles`,
-`deploy-target`. `base/` layer built and hardened. Next: `scripts/generate.js` (does not
-exist yet — this is the biggest remaining piece), then the Claude Code skill, then Case
-2 question phrasing. Pushed to GitHub:
-`https://github.com/Gopalakrishna-Ratnala/boilerplate-generator` (branch `main`).
+**Last updated:** 2026-07-13 (session 8)
+**Status:** All 5 fixed-axis bundles complete AND cross-checked in a full repo audit
+(§13) — 2 real protection-consistency gaps found and fixed. `base/` layer built and
+hardened. Next: `scripts/generate.js` (does not exist yet — this is the biggest
+remaining piece), then the Claude Code skill, then Case 2 question phrasing. Pushed to
+GitHub: `https://github.com/Gopalakrishna-Ratnala/boilerplate-generator` (branch
+`main`).
 
 ---
 
@@ -389,7 +390,60 @@ user to `git pull` in VS Code to review.**
 
 ---
 
-## 13. Immediate next step (where to resume) — all bundles done, `generate.js` is next
+## 13. Full repo review (session 8) — audit before starting `generate.js`
+
+Before starting `generate.js`, did a full cross-bundle consistency audit rather than
+trusting the individual bundle reviews in isolation. Checks run:
+
+1. **Every bundle option has all 4 contract files** (`manifest.json`,
+   `deps.fragment.json`, `settings.fragment.json`, `rules/*.md`) — 14/14 clean.
+2. **Every manifest's `axis`/`option` fields match their folder path**, and every
+   manifest has `claudeMdSummaryLine` — 14/14 clean.
+3. **Every path in every `deny` list resolves to a real shipped file** — clean, with
+   `deploy-target/ssr` correctly flagged as an intentional exception (protects files
+   that don't exist yet in this bundle's `files/` because they're created later by its
+   `postGenerateCommands`).
+4. **Every shipped `.ts` file is actually covered by its bundle's `deny` list** — found
+   two real gaps, not stylistic nitpicks:
+   - `data-layer/mock/files/.../mock-response.ts` was never protected, despite being
+     the same class of "shared mechanism every feature depends on" as the already-protected
+     `api.service.ts`/`graphql.config.ts`. **Fixed: now protected.**
+   - `data-layer/rest/files/.../api.config.ts` was unprotected while its siblings
+     (`graphql.config.ts`, `realtime.config.ts`) were protected, with no stated reason
+     for the difference — an unexplained inconsistency, not a deliberate exception.
+     **Fixed: now protected, matching the sibling pattern.** Both fixes also updated
+     the corresponding `rules/*.md` files so the documentation matches the actual
+     enforcement (previously `rest/rules/data-layer.md` said `api.config.ts` was just
+     "reads the base URL" without noting protection — now corrected).
+5. **Every `settings.fragment.json` only ever uses the `deny` key** — consistent,
+   confirmed across all 14 (none use `allow`/`ask`, which was never actually needed).
+6. **Every `rules/*.md` file follows the exact 4-header template** (`What pattern is
+   used` / `What the AI agent may do` / `What the AI agent must NOT do` / `Where the
+   code lives`) — 14/14 consistent. `ngrx-signalstore` has one extra header prepended
+   (the compatibility warning) — a deliberate, justified addition, not a break in the
+   template.
+7. **Full JSON validation and TypeScript syntax check across the entire repo in one
+   sweep** (not just per-bundle as each was built) — clean.
+8. **`CLAUDE.md` placeholder tokens are spelled identically everywhere they're used** —
+   checked `{{SELECTOR_PREFIX}}` appears identically in both `CLAUDE.md` and
+   `architecture.md` (a silent mismatch here would mean `generate.js`'s find-replace
+   fills in one file and misses the other). Full placeholder set `generate.js` must
+   fill: `{{PROJECT_NAME}}`, `{{ONE_LINE_PROJECT_DESCRIPTION}}`, `{{ANGULAR_VERSION}}`,
+   `{{TS_VERSION}}`, `{{PACKAGE_MANAGER}}`, `{{SELECTED_BUNDLES_LIST}}`,
+   `{{SELECTOR_PREFIX}}`.
+9. **Two stray empty folders found and removed** (leftovers from early `mkdir -p
+   .../{a,b,c}/` brace-expansion mistakes: one under `auth/`, one under
+   `data-layer/`) — both were empty, never tracked by git, no functional impact, but
+   worth a final sweep before building `generate.js` so it doesn't get confused by
+   stray directories.
+
+**Takeaway carried into `generate.js`:** the per-bundle review discipline (test each
+bundle as it's built) is necessary but not sufficient — a cross-cutting sweep after
+several bundles exist catches inconsistencies that only show up when comparing bundles
+against each other, not when reviewing one at a time. Worth repeating this kind of full
+audit again after `generate.js` exists and after the Claude Code skill wraps it.
+
+## 14. Immediate next step (where to resume) — all bundles done, reviewed, `generate.js` is next
 
 All 5 fixed-axis bundles are complete. **`scripts/generate.js` is the only remaining
 piece before the Claude Code skill can wrap it.** Its required steps, in order, based on
