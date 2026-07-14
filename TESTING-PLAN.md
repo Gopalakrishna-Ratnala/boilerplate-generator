@@ -73,26 +73,36 @@ created, clear error message naming the actual conflict.**
 | 9 | Version floor violation | `--auth=oauth-sso --angular-version=21` (+ others) | `auth="oauth-sso" requires Angular >= 22` |
 | 10 | Version ceiling violation | `--styling=primeng` with no `--angular-version` (defaults to 22) | `styling="primeng" requires Angular <= 21` |
 
-## Step 3 — Real GitHub push (never actually tested end-to-end outside a sandbox bare repo)
+## Step 3 — Cleanup (local-only testing, no GitHub push for now)
 
-Create one real empty GitHub repo, then re-run **Test 1's flags** with:
+Every test in Step 2 should be run **without** `--repo` (local generation only — no
+`GITHUB_TOKEN` needed, nothing pushed anywhere). Once a test's `lint`/`build`/`test`
+results are recorded in the final report table, **delete that test's output directory
+before moving to the next test**, so nothing lingers on disk:
+
 ```bash
-GITHUB_TOKEN=<a real fine-grained PAT scoped to that repo> \
-node scripts/generate.js ...(Test 1's flags)... --repo=https://github.com/<you>/<empty-repo>.git
+rm -rf /tmp/real-test-1   # after recording its results, before starting test 2
 ```
-Confirm: real `npm install` succeeds, real `git push` succeeds, and the pushed repo on
-GitHub actually contains what's expected (`.claude/`, `CLAUDE.md`, `.mcp.json`, the
-right bundle files) — check on github.com itself, not just trust the local commit.
+
+Do this after every generation test (1–7), immediately after its results are captured
+— don't batch the cleanup at the very end, and don't leave any of these directories
+around once the whole plan is finished. (The real GitHub push path is skipped for now
+and will be tested in a separate, later pass.)
 
 ## Step 4 — The skill, used conversationally (never tested outside this write-up)
 
 Inside Claude Code, in the `boilerplate-generator` repo, either type
 `/new-angular-project` or just say "I want to create a new Angular project for a
-client." Answer its questions with a simple, valid combination. Confirm:
+client." Answer its questions with a simple, valid combination. **When it asks for a
+GitHub repo URL, say you don't want to push yet — generate locally only for this
+pass.** Confirm:
 - It asks one question at a time, not all at once.
 - It calls `generate.js` itself rather than hand-writing any files.
 - It shows `generate.js`'s real output (including any warnings) rather than
   paraphrasing it away.
+- It correctly omits `--repo` and skips the push step when told not to push.
+
+Delete this test's output directory once confirmed, same as every other test.
 
 ---
 
@@ -110,7 +120,6 @@ client." Answer its questions with a simple, valid combination. Confirm:
 | 8 (requires violation) | refused? | — | — | — | |
 | 9 (version floor violation) | refused? | — | — | — | |
 | 10 (version ceiling violation) | refused? | — | — | — | |
-| Real GitHub push | | — | — | — | |
 | Skill (conversational) | | — | — | — | |
 
 **Especially flag, since these were sandbox-only findings never confirmed on real
