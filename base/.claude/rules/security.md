@@ -21,6 +21,10 @@
   time based on the client's selected options. If a task genuinely seems to need a new
   package, stop and say so — do not add it.
 - Never run `npm audit fix --force` or any command that changes lockfile versions.
+- **`git commit` is hook-blocked if `npm audit` finds any vulnerability**
+  (`.claude/hooks/check-dependency-security.sh`) — this isn't just a review-time
+  concern, the commit itself will fail. If a commit is blocked this way, flag it to a
+  developer rather than force-installing a fix or overriding the audit.
 
 ### Protected files — do not edit
 

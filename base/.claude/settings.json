@@ -81,6 +81,14 @@
           {
             "type": "command",
             "command": "bash .claude/hooks/protect-paths.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-interactive-div-span.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-hardcoded-colors.sh"
           }
         ]
       },
@@ -90,6 +98,10 @@
           {
             "type": "command",
             "command": "bash .claude/hooks/guard-bash.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-dependency-security.sh"
           }
         ]
       }
@@ -102,6 +114,10 @@
           {
             "type": "command",
             "command": "bash .claude/hooks/format-and-lint.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-tsc.sh"
           }
         ]
       }

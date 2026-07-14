@@ -4,17 +4,19 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-14 (session 13)
-**Status:** Drilled into angular.dev's remaining sections (Security, Style Guide,
-Testing/HTTP, Forms, Accessibility deep-dive) at the user's request. **Found and fixed
-a critical gap**: `security.md` covered only company file-protection rules, with none
-of Angular's own actual security model (XSS/sanitization, CSRF, SSRF) — the part that
-actually prevents real vulnerabilities in generated code. Also added an SSR-specific
-SSRF section to `deploy-target/ssr`, an event-handler naming convention, expanded
-Testing (HttpClient testing pattern) and Forms (validators, ControlValueAccessor)
-sections, and an Angular Aria mention. All verified via a full `generate.js` run.
-Pushed to GitHub: `https://github.com/Gopalakrishna-Ratnala/boilerplate-generator`
-(branch `main`).
+**Last updated:** 2026-07-14 (session 14)
+**Status:** User provided two reference templates (`ai-ready-react-template` and its
+Angular port, `ai-ready-angular-template`) — existing company convention for `.claude/`
+structure. Compared both against our system in depth. Adopted 4 concrete improvements:
+2 new content-based hooks ported from React (framework-agnostic, straight port), 2
+deliberately **re-adapted for Angular** rather than blindly copied (a blanket
+`<div>`/`<span>` ban would be wrong for Angular; a shadcn-specific color-token
+convention doesn't apply since we don't mandate a UI library). Also added a
+consolidated anti-patterns/validation-checklist file, another pattern found in the
+reference templates. **2 real bugs found and fixed while testing the new hooks** — not
+just "does it run," but real block/pass verification, same discipline as everything
+else. Pushed to GitHub:
+`https://github.com/Gopalakrishna-Ratnala/boilerplate-generator` (branch `main`).
 
 ---
 
@@ -794,7 +796,84 @@ Directives, and DI (hierarchical providers, injection tokens) were not done this
 session — flagged as candidates for a future pass if real use surfaces a need, same
 "don't build ahead of demonstrated need" principle applied throughout this project.
 
-## 20. Where things stand — Category A, B, and the security deep-dive all done
+## 20. Reference template comparison (session 14) — user's existing company convention
+
+User provided two zips: `ai-ready-react-template` (the original) and
+`ai-ready-angular-template` (its Angular port — the Angular one's own README states it
+"mirrors the structure and intent of the company's `ai-ready-react-template`"). Both
+examined in full depth before deciding anything.
+
+**Core architectural difference, deliberately NOT changed:** their model is one
+template repo where all strategy options (state management, styling, rendering mode)
+coexist as documented choices, and a human deletes what they don't need after cloning.
+Ours generates a fresh repo with only the selected option's files/rules present,
+decided *before* generation via questions. **Kept our approach** — their model assumes
+a developer sets the project up; ours was built specifically around a non-technical
+person driving the AI agent pre-developer-handoff, which is the entire reason this
+system exists. Structural impossibility (the wrong option never gets generated) beats
+trusting a human to delete the right folders, for that specific constraint.
+
+**What WAS adopted, in each case checked against whether it was genuinely portable
+or React/JSX-specific before copying anything:**
+
+1. **`check-tsc.sh`** — non-blocking `tsc --noEmit` after every `.ts` edit, debounced
+   30s. Framework-agnostic (TypeScript is TypeScript) — ported directly, adapted only
+   to look for Angular's `tsconfig.json` at the project root instead of walking up from
+   `src/`.
+2. **`check-dependency-security.sh`** — blocks `git commit` if `npm audit` finds any
+   vulnerability. Completely framework-agnostic (npm is npm) — ported as-is.
+3. **`check-interactive-div-span.sh`** — **deliberately NOT a direct port.** The React
+   version blocks ALL `<div>`/`<span>` use, which is correct for their
+   shadcn/Radix-primitive-first convention but would be **wrong** for Angular, where
+   div/span are normal, correct choices for pure layout. Re-scoped to match what
+   `accessibility.md` (and Angular's own official guidance) actually objects to: a
+   div/span given *interactive* semantics (`(click)`, `tabindex`, `(keydown)`/`(keyup)`)
+   instead of a real `<button>`/`<a>` — a narrower, more accurate rule than the source.
+4. **`check-hardcoded-colors.sh`** — **also deliberately re-adapted, not ported.** The
+   React version's fix-it message points to shadcn-specific token names
+   (`bg-primary`, `text-foreground`) because that template mandates shadcn. This system
+   doesn't mandate any UI library (component-library choice is our own deferred
+   Category-C cosmetic axis), so the ported version checks for the same underlying
+   problem (hardcoded hex/rgb/hsl) without assuming a specific token naming scheme, and
+   explicitly exempts a CSS custom-property *definition* line (the legitimate place a
+   literal color value belongs) rather than every literal color anywhere.
+5. **`anti-patterns-checklist.md`** — a consolidated, skimmable auto-reject list +
+   final validation checklist, cross-referencing rules that already exist elsewhere
+   rather than introducing new ones. Same pattern found in both reference templates.
+
+**Correctly left un-ported, and why:** `check-no-any` (they moved this to a real ESLint
+rule instead of a hook in their own Angular port — we already have the ESLint-level
+equivalent via `@angular-eslint/schematics`, no gap here). `check-barrel-exports`,
+`check-component-files` (React/Storybook-specific: `index.ts` re-export convention and
+a mandatory `.stories.tsx` per component — neither applies to how this system
+structures Angular projects). `check-no-inline-classnames/style`, `check-no-sx-prop`
+(JSX/MUI-specific styling mechanisms with no Angular equivalent).
+
+**Testing discipline maintained, and it paid off again:** every new hook tested with
+real block/pass payloads before being accepted, not just read for plausibility. **Two
+real bugs found and fixed during testing:**
+- `check-hardcoded-colors.sh`'s exclusion for legitimate custom-property *definitions*
+  didn't work — the exclusion regex was applied *after* `grep -n` had already prefixed
+  each line with a line number, breaking the `^`-anchored match. Fixed by filtering
+  before line-numbering, not after (same class of bug, same fix shape, as the
+  `generate.js` path-flattening bug from session 9 — order-of-operations in a text
+  pipeline is a recurring source of these).
+- `check-dependency-security.sh` produced a nonsensical `"null vulnerability(ies)"`
+  false-positive block when `npm audit` couldn't run cleanly (no `package.json`, e.g.).
+  Fixed to fail *safe* (warn, allow the commit) when the vulnerability count can't be
+  reliably parsed, rather than blocking on a count that was never actually determined —
+  verified against 3 real cases: no-package.json (now warns, allows), a genuinely clean
+  project (allows), and a project with a real installed vulnerable package
+  (`lodash@4.17.4`, confirmed via direct `npm audit` inspection) — correctly blocks with
+  accurate counts.
+
+Full JSON validation and a real end-to-end `generate.js` run (not dry-run) confirmed:
+7 hooks now present (up from 3), 13 rule files (up from 12), `settings.json` correctly
+wired, and — critically — the new interactive-div-span hook actually fires correctly
+when invoked from *within* the real generated project's own file tree, not just in
+isolation.
+
+## 21. Where things stand — Category A, B, the security deep-dive, and reference-template comparison all done
 
 1. **Real-world use** — still the most valuable next step, unchanged in priority from
    before. The user should run `generate.js` directly and try the skill in a live

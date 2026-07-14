@@ -34,7 +34,10 @@ structural patterns below.
 - **Reuse native elements** rather than reimplementing their behavior — a custom
   "button-like" div needs all the keyboard/focus/ARIA behavor a real `<button>` gets for
   free. Prefer an attribute selector on a native element (e.g. a custom directive on
-  `<button appMyButton>`) over building a div-based lookalike.
+  `<button appMyButton>`) over building a div-based lookalike. **This is hook-enforced**
+  (`.claude/hooks/check-interactive-div-span.sh`) — a `<div>`/`<span>` with `(click)`,
+  `tabindex`, or `(keydown)`/`(keyup)` bound directly on it will be blocked, not just
+  flagged in review.
 - **For genuinely custom interactive widgets with no native element equivalent**
   (a combobox, a tree view, a tabs component), check whether Angular Aria
   (`@angular/aria`) already provides an accessible primitive before hand-rolling ARIA
