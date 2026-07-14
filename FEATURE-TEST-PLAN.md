@@ -98,7 +98,12 @@ the real guardrails, not a scripted walkthrough.
 ## Step 4 — Write your report and push it
 
 Copy `test-reports/TEMPLATE.md` to `test-reports/tester-<your-number>-<short-bundle-name>.md`
-(e.g. `test-reports/tester-2-oauth-material.md`), fill it in, then:
+(e.g. `test-reports/tester-2-oauth-material.md`), fill it in — **including the
+"Generated code" section, which is the most important part of the report**: paste the
+full content of every new/changed file, not a summary. Your own read of "this looks
+compliant" isn't enough on its own — the central-brain session needs the actual code
+to independently verify against the real rule files, since it's easy to miss your own
+subtle rule violations when self-assessing. Then:
 
 ```bash
 cd boilerplate-generator   # back in the CLONE, not your generated test project
@@ -121,11 +126,15 @@ pushed — same clean-up discipline as `TESTING-PLAN.md`.
 
 ## For the central brain session (whoever reviews these)
 
-Once reports start arriving in `test-reports/`, read every one, cross-reference
-findings that appear in multiple reports (a hook misfiring for two different testers
-on two different bundle combos is a much stronger signal than one person's isolated
-report), and fix the generator at the source — `base/` for anything universal,
-the specific `bundles/<axis>/<option>/` for anything bundle-specific. Update
+**Read the actual pasted code in each report's "Generated code" section directly and
+cross-check it against the real rule files yourself — don't just skim the "Rule
+compliance self-check" checkboxes and trust them.** A tester's own self-assessment can
+miss its own subtle violations; the checklist is a starting point for your review, not
+a substitute for it. Once reports start arriving in `test-reports/`, read every one,
+cross-reference findings that appear in multiple reports (a hook misfiring for two
+different testers on two different bundle combos is a much stronger signal than one
+person's isolated report), and fix the generator at the source — `base/` for anything
+universal, the specific `bundles/<axis>/<option>/` for anything bundle-specific. Update
 `CONTEXT.md` with a new dated section per fix, same discipline as every prior session.
 Leave the `test-reports/*.md` files in the repo as a historical record rather than
 deleting them after reading.
