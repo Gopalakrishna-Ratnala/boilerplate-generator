@@ -1,0 +1,7 @@
+{
+  "axis": "styling",
+  "option": "none",
+  "label": "None (plain CSS/SCSS)",
+  "description": "No component library. Plain SCSS, no design-token system, no pre-built components.",
+  "claudeMdSummaryLine": "Styling: none (plain SCSS, no component library)"
+}

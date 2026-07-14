@@ -38,7 +38,7 @@ const REPO_ROOT = path.resolve(__dirname, '..');
 const BASE_DIR = path.join(REPO_ROOT, 'base');
 const BUNDLES_DIR = path.join(REPO_ROOT, 'bundles');
 
-const AXES = ['auth', 'data-layer', 'state', 'roles', 'deploy-target', 'i18n', 'offline'];
+const AXES = ['auth', 'data-layer', 'state', 'roles', 'deploy-target', 'i18n', 'offline', 'styling'];
 
 // Commands that run for EVERY generated project, regardless of bundle selection —
 // company-wide standards, not per-client decisions. Contrast with a bundle's
@@ -418,8 +418,30 @@ function applyBundle(projectDir, axis, option, seenFiles) {
     const fragment = JSON.parse(fs.readFileSync(depsFragmentPath, 'utf8'));
     const pkgPath = path.join(projectDir, 'package.json');
     const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-    pkg.dependencies = { ...(pkg.dependencies || {}), ...(fragment.dependencies || {}) };
-    pkg.devDependencies = { ...(pkg.devDependencies || {}), ...(fragment.devDependencies || {}) };
+
+    // A bundle may specify '*' for an @angular/* package to mean "match whatever
+    // Angular version this project actually uses" — but npm's '*' means "absolute
+    // latest available," not "compatible with what's installed." Found via a real
+    // test: '@angular/cdk': '*' resolved to its true latest (22.0.4, requiring
+    // @angular/core ^22) against this project's actual installed core (21.2.18),
+    // causing a peer-dependency failure npm's own resolver correctly flagged.
+    // Fix: resolve '*' for any @angular/* dependency to the exact version already
+    // declared for @angular/core in this project, since Angular's own family
+    // packages release in lockstep.
+    const coreVersion = pkg.dependencies?.['@angular/core'];
+    const resolveAngularStar = (deps) => {
+      if (!deps) return deps;
+      const resolved = { ...deps };
+      for (const [name, version] of Object.entries(resolved)) {
+        if (version === '*' && name.startsWith('@angular/') && coreVersion) {
+          resolved[name] = coreVersion;
+        }
+      }
+      return resolved;
+    };
+
+    pkg.dependencies = { ...(pkg.dependencies || {}), ...resolveAngularStar(fragment.dependencies) };
+    pkg.devDependencies = { ...(pkg.devDependencies || {}), ...resolveAngularStar(fragment.devDependencies) };
     fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
   }
 

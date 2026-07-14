@@ -1,0 +1,10 @@
+{
+  "axis": "styling",
+  "option": "primeng",
+  "label": "PrimeNG",
+  "description": "PrimeNG component library with the Aura theme preset. No CLI schematic exists for PrimeNG — installed and wired manually.",
+  "claudeMdSummaryLine": "Styling: PrimeNG (Aura theme preset)",
+  "knownIssues": [
+    "primeng's peerDependencies (verified at the time this bundle was built: primeng@21.1.9 requires @angular/core@^21.0.7) may lag behind this project's locked 'latest stable Angular' constant, the same class of issue as state/ngrx-signalstore. Verify both packages' current peer-dependency ranges before assuming this is still a mismatch — if it still is, that's a per-project developer decision (accept the mismatch if compatible in practice, or hold off on this bundle option), not something generate.js decides silently."
+  ]
+}

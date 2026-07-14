@@ -1,0 +1,10 @@
+{
+  "axis": "styling",
+  "option": "tailwind",
+  "label": "Custom / Tailwind",
+  "description": "Utility-first CSS via Tailwind, added through Angular's own official ng add schematic. No pre-built components — Angular CDK is added for accessible custom widget primitives.",
+  "claudeMdSummaryLine": "Styling: Custom/Tailwind (ng add tailwindcss + Angular CDK for accessible custom widgets)",
+  "postGenerateCommands": [
+    "ng add tailwindcss --skip-confirmation"
+  ]
+}

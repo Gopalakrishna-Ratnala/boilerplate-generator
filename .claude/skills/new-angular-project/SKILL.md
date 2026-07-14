@@ -34,7 +34,7 @@ This decides which question phrasing you use below — Case 1 (technical) or Cas
 (non-technical). Don't guess from context; ask directly if it isn't already obvious from
 the conversation.
 
-## Step 2 — Ask the 7 required questions, one at a time
+## Step 2 — Ask the 8 required questions, one at a time
 
 Ask these **one at a time**, not all at once — wait for each answer before asking the
 next. Use Case 1 phrasing if the person said technical, Case 2 if non-technical.
@@ -176,6 +176,32 @@ it fine to require an internet connection at all times?"
 
 ---
 
+---
+
+### Q8 — Component library / styling → `--styling`
+
+**Case 1 (technical):** "Do you want a component library — Angular Material, PrimeNG —
+or a custom/Tailwind setup, or nothing at all (plain CSS)?"
+- Angular Material → `material`
+- PrimeNG → `primeng`
+- Custom/Tailwind (utility-first, no pre-built components) → `tailwind`
+- Nothing / plain CSS → `none`
+
+**Case 2 (non-technical):** "Do you want us to use a ready-made design system (like
+Google's Material Design), a different pre-built component set, or build the visual
+style fully custom for this project?"
+- Google's Material Design look → `material`
+- A different pre-built component set (ask if they have one in mind — PrimeNG is a
+  common choice) → `primeng`
+- Fully custom visual design → `tailwind`
+- Not sure / keep it simple for now → `none`
+
+*Note: `primeng`'s peer dependency may lag behind this project's locked Angular version
+— `generate.js` will print a known-issue warning if so. Show it to the user/developer
+verbatim.*
+
+---
+
 ## Step 3 — Cosmetic/open questions (no bundle impact)
 
 These do **not** map to `generate.js` flags — they're for the human designer to keep in
@@ -183,12 +209,11 @@ mind, not something this generator enforces. Ask briefly, then fold the answer i
 `--description`:
 
 - Visual theme / brand colors / typography
-- Preferred component library, if any (e.g. Angular Material, PrimeNG, or fully custom)
 - Anything else worth noting in the project's one-line description
 
-Combine these into a single sentence for `--description="..."`. Don't create bundle
-flags for these — the system deliberately doesn't guardrail cosmetic choices (see
-`CONTEXT.md` §2, the fixed vs. open axis split).
+Combine these into a single sentence for `--description="..."`. Component library
+choice is **no longer** a cosmetic question — see Q8 above; it's a real fixed axis with
+actual guardrails now, not something to leave unenforced.
 
 ## Step 4 — Project name and repo
 
@@ -203,7 +228,7 @@ Ask for:
 
 Confirm the full set of answers back to the user in one short summary before running
 anything ("Auth: X, Data layer: Y, State: Z, Roles: W, Deploy target: V, i18n: U,
-Offline: T, pushing to
+Offline: T, Styling: S, pushing to
 <repo>— is that right?"). Then, once confirmed, run:
 
 ```bash
@@ -216,6 +241,7 @@ GITHUB_TOKEN=<token, if pushing> node scripts/generate.js \
   --deploy-target=<value> \
   --i18n=<value> \
   --offline=<value> \
+  --styling=<value> \
   --description="<combined cosmetic notes>" \
   --repo=<url>
 ```

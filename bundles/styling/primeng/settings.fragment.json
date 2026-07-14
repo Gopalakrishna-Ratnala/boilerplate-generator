@@ -1,0 +1,6 @@
+{
+  "deny": [
+    "Edit(./src/app/core/config/primeng-theme.config.ts)",
+    "Write(./src/app/core/config/primeng-theme.config.ts)"
+  ]
+}

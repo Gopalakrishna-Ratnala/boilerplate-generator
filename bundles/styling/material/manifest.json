@@ -1,0 +1,10 @@
+{
+  "axis": "styling",
+  "option": "material",
+  "label": "Angular Material",
+  "description": "Google's Material Design components for Angular, added through the official ng add schematic (theming, typography wired automatically).",
+  "claudeMdSummaryLine": "Styling: Angular Material (added via ng add schematic)",
+  "postGenerateCommands": [
+    "ng add @angular/material --skip-confirmation"
+  ]
+}

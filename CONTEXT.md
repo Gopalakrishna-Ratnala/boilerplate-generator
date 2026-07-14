@@ -4,22 +4,20 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-14 (session 16)
-**Status:** User asked another AI agent for Angular coding standards and had us
-cross-check the result (37 numbered points + a review checklist) against everything
-built so far. Found and resolved: **a real self-contradiction** (our own `CLAUDE.md`
-said "no file-type suffix" while every actual bundle file already used the suffixed
-convention — resolved in favor of the already-implemented, already-tested code, not
-the prose), 5 more hooks ported/adapted from the Angular reference template, an
-ESLint tightening (`no-explicit-any` → error), Husky + lint-staged setup (new to
-`generate.js`), and 6 rule-file additions (RxJS operators, `takeUntilDestroyed`,
-immutable updates, explicit template-method-call rule, smart/dumb components,
-`CanDeactivate`). **Also found the most serious bug yet**: `src/environments/` hasn't
-been scaffolded by `ng new` since Angular 15 — every project this system has ever
-generated using the `rest`/`graphql`/`realtime` data-layer bundles would have failed
-its **production build** (`ng build`), undetected until this session because prior
-testing only ran `ng lint`/`ng test`, never `ng build`. Fixed and verified across all
-three affected bundles. Pushed to GitHub:
+**Last updated:** 2026-07-14 (session 17)
+**Status:** User raised a concern, live from seeing the skill's actual question flow,
+about component-library/styling being treated as purely cosmetic — this was a real
+gap we'd already flagged (session 14) and never acted on. **Promoted `styling` from a
+cosmetic open question to a real 8th fixed axis** (`material`/`primeng`/`tailwind`/`none`),
+matching the reference templates' own treatment. Found and fixed **a subtler, more
+general version of the `angular-oauth2-oidc` peer-dependency pattern**: `"*"` in a
+deps fragment does not mean "match whatever's installed" — it means "absolute latest
+available" — which only accidentally worked before for `@angular/animations` because
+its true latest happened to match; `@angular/cdk`'s true latest didn't, causing a real,
+caught-via-testing peer-dependency failure. Fixed generically for any future
+`@angular/*` bundle dependency, not just this one instance. All 4 styling options
+verified via real generation + lint + build (one sandbox-network-only false alarm
+correctly diagnosed and ruled out). Pushed to GitHub:
 `https://github.com/Gopalakrishna-Ratnala/boilerplate-generator` (branch `main`).
 
 ---
@@ -153,7 +151,8 @@ boilerplate-generator/
 │   ├── roles/{single-role, rbac}/                           # ✅ BUILT
 │   ├── deploy-target/{spa, ssr}/                            # ✅ BUILT
 │   ├── i18n/{single-language, multi-language}/               # ✅ BUILT (session 12)
-│   └── offline/{standard, pwa}/                              # ✅ BUILT (session 12)
+│   ├── offline/{standard, pwa}/                              # ✅ BUILT (session 12)
+│   └── styling/{material, primeng, tailwind, none}/           # ✅ BUILT (session 17)
 └── scripts/
     └── generate.js                # ✅ BUILT AND END-TO-END TESTED (session 9)
 ```
@@ -999,7 +998,85 @@ error report rather than assuming.
 
 Full JSON validation and `generate.js` syntax check re-run clean after all changes.
 
-## 22. Where things stand — Category A, B, security deep-dive, reference-template comparison, and enterprise standards cross-check all done
+## 22. Styling promoted from cosmetic to a real 8th fixed axis (session 17)
+
+User saw the skill's actual live question flow (Step 3's cosmetic questions included
+"preferred component library") and raised the same concern this project had already
+flagged and deferred back in session 14: treating UI-library choice as purely cosmetic
+was wrong. This time, acted on it instead of deferring again.
+
+**System extended from 7 to 8 axes.** New `styling` axis: `material` / `primeng` /
+`tailwind` / `none` — the exact same 4 options the user's own reference templates use.
+`generate.js`'s `AXES` array, the skill (`Q8`, both Case 1/2 phrasing, confirmed via
+flag-name cross-check against the real script), and `CLAUDE.md`'s flag list all
+updated consistently.
+
+**Every real command/package verified by actually running it before writing bundle
+files — same discipline as every other schematic-backed bundle:**
+- `material` → `ng add @angular/material --skip-confirmation`. Verified real: produces
+  Material 3 theming (`mat.theme()` in `styles.scss`), CDK, no manual animations
+  provider needed. **No dedicated theme file to protect** (schematic embeds theming
+  directly in `styles.scss`, a file also used for other global styles) — documented as
+  an explicit, honest limitation in the bundle's rule file rather than pretending a
+  hook covers something it can't.
+- `primeng` → no `ng add` schematic exists (confirmed by checking the npm package's own
+  metadata) — manual install (`primeng`, `@primeuix/themes`) plus **a genuinely
+  new finding from testing**: `provideAnimationsAsync()` requires `@angular/animations`
+  installed explicitly, which a fresh `ng new` project does *not* include by default.
+  Caught by a real failing build (`Could not resolve "@angular/animations/browser"`),
+  not assumed. Theme preset isolated into a new protected `primeng-theme.config.ts`
+  (same pattern as `oauth.config.ts`). **`primeng`'s peer dependency
+  (`@angular/core@^21.0.7` at time of writing) lags the locked Angular version** — same
+  class of issue as `state/ngrx-signalstore`, documented the same way via
+  `knownIssues`.
+- `tailwind` → `ng add tailwindcss` (Angular's own built-in CLI action, confirmed
+  working via a real build). **Corrected a stale reference found while adapting the
+  reference template's own Tailwind rules**: that template's guidance mentions
+  `tailwind.config.js`, but what actually gets installed (Tailwind v4.3.2, verified)
+  uses **CSS-first `@theme` configuration** in `src/tailwind.css` — no config file at
+  all. Written correctly for what's actually installed, not copied from a
+  now-outdated source. `@angular/cdk` added explicitly (for the mandatory
+  "custom interactive widgets need CDK/ARIA underneath" rule, adapted directly from
+  the reference template's own correct guidance on this point).
+- `none` → unchanged pattern, no deps/files, rules only.
+
+**A second, more general version of a bug class first seen with
+`angular-oauth2-oidc`, found and fixed properly this time — not just patched for one
+package.** `"*"` in a `deps.fragment.json` does not mean "resolve to whatever's
+compatible with the already-installed Angular version" — it means "give me the
+absolute latest version published on npm," full stop. This had already been used for
+`primeng`'s bundle (`@angular/animations": "*"`) and appeared to work — but only
+because `@angular/animations`'s true latest happened to equal the sandbox's installed
+Angular core version at the time. **Building the `tailwind` bundle exposed the actual
+bug**: `@angular/cdk": "*"` resolved to its real latest (`22.0.4`, requiring
+`@angular/core ^22`) against this sandbox's installed core (`21.2.18`), producing a
+genuine, correctly-flagged `npm` peer-dependency failure — confirmed via the actual
+npm resolution error report, not assumed. **Fixed generically in `applyBundle()`**:
+any dependency literally set to `"*"` for an `@angular/*`-scoped package is now
+resolved to the exact version already declared for `@angular/core` in the project,
+since Angular's own family packages release in lockstep — this fixes the bug for
+`@angular/cdk`, retroactively makes the earlier `@angular/animations` fix actually
+correct-by-design rather than correct-by-luck, and prevents the same class of bug for
+any future bundle that adds an `@angular/*` dependency this way.
+
+**One false alarm correctly diagnosed and ruled out, not mistaken for a real bug:** the
+`material` bundle's build failed with `Inlining of fonts failed... returned status
+code: 403` — confirmed via `grep` that Material's own official schematic adds a Google
+Fonts `<link>` to `index.html` by default (expected, standard behavior), and the
+failure is this **sandbox's network egress proxy blocking `fonts.googleapis.com`**
+(not in the allowed-domains list), not a real generator bug. Verified by disabling font
+inlining as a test-only workaround and confirming the rest of the build was completely
+clean — isolating the sandbox limitation from anything the bundle itself did wrong.
+
+All 4 styling options verified end-to-end: real generation, real `ng lint` (all clean),
+real `ng build` (all clean, material's font-inlining caveat aside), and for `primeng`
+specifically, the full intended manual-wiring pattern (`providePrimeNG` +
+`provideAnimationsAsync` in `app.config.ts`) was manually completed and built
+successfully — not just the isolated config file in a vacuum.
+
+Full JSON validation and `generate.js` syntax check re-run clean after all changes.
+
+## 23. Where things stand — Category A, B, security deep-dive, reference-template comparison, enterprise standards cross-check, and styling axis all done
 
 **Permanent addition to this project's testing discipline, effective immediately**:
 **every full validation pass must include a real `ng build`, not just `ng lint` and
@@ -1008,19 +1085,30 @@ bug was invisible to lint and test across 6+ prior sessions and would have shipp
 every real user of the `rest`/`graphql`/`realtime` bundles undetected. `ng lint` + `ng
 test` passing is not sufficient evidence a generated project actually works.
 
+**Second permanent lesson, from this session**: **never use a bare `"*"` version for an
+`@angular/*` dependency in a `deps.fragment.json` and assume it "resolves compatibly."**
+It doesn't — it resolves to the literal latest published version, full stop, which can
+silently diverge from whatever Angular version the rest of the project actually uses.
+`generate.js`'s `applyBundle()` now handles this automatically (resolves `"*"` to match
+the installed `@angular/core` version), but any *new* dependency added to a future
+bundle should still be sanity-checked the same way `@angular/cdk` was here — by
+generating a real project and running a real `npm install` + `ng build`, not by
+assuming a version string is safe because it looked fine for a different package once.
+
 1. **Real-world use** — still the most valuable next step, unchanged in priority from
    before. The user should run `generate.js` directly and try the skill in a live
    Claude Code session.
 2. **Verify against true latest Angular (22.x)** on a real machine — still the single
    biggest untested gap. Every schematic used across sessions
    (`@angular-eslint/schematics`, `@jsverse/transloco`, `@angular/pwa`, `ng generate
-   environments`, `husky init`) resolved a compatible version automatically in this
-   sandbox rather than the literal latest, for the same Node-version reason noted since
-   session 9. Given this session found a production-build-breaking bug that lint/test
+   environments`, `husky init`, `@angular/material`, `tailwindcss`) resolved a
+   compatible version automatically in this sandbox rather than the literal latest, for
+   the same Node-version reason noted since session 9. Given this session found both a
+   production-build-breaking bug and a peer-dependency-resolution bug that lint/test
    alone couldn't catch, **this verification matters more than previously stated** —
    there could be other version-specific issues only a real Angular 22 + real Node
    build would surface.
-3. **Re-run the full audit pattern from §13** — now covering 7 axes across 18 total
+3. **Re-run the full audit pattern from §13** — now covering 8 axes across 22 total
    bundle options, 12 hooks, and a substantially larger `angular.md`/`architecture.md`
    — this has caught something new literally every time it's been tried, no reason to
    expect that stops now.
