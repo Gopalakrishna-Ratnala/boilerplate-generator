@@ -50,6 +50,18 @@ fast-moving framework internals that will drift stale — prefer running the rea
 schematic. Only use static `files/` for bundle logic that has no CLI schematic
 (everything in `auth`, `data-layer`, `state`, `roles` so far).
 
+`minAngularMajor` / `maxAngularMajor` are optional integers. Use them when a bundle
+option has a real, verified Angular-version floor/ceiling from its own package's peer
+dependencies (checked against the live npm registry, not assumed) — e.g.
+`"minAngularMajor": 22` for `auth/oauth-sso` (its real peer requirement), or
+`"minAngularMajor": 21, "maxAngularMajor": 21` for anything whose peer range is a
+single-version window (`state/ngrx-signalstore`, `styling/primeng`, both verified this
+way). `generate.js` validates the requested `--angular-version` against every selected
+bundle's range before generating anything, refusing clearly on an out-of-range
+combination — same "flag it, don't generate something broken" principle as `requires`.
+Omit both fields when an option has no real version constraint (true for anything
+schematic-driven via `ng add`, which self-resolves a compatible version).
+
 ## Rules for every `<axis>.md` inside a bundle option
 
 1. Follows the same section order every time (see `auth/oauth-sso/rules/auth.md` as the

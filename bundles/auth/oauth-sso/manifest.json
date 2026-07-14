@@ -3,5 +3,6 @@
   "option": "oauth-sso",
   "label": "OAuth / SSO",
   "description": "Login via an external identity provider (Google, Microsoft, etc.) using OAuth2/OIDC.",
-  "claudeMdSummaryLine": "Auth: OAuth/SSO (angular-oauth2-oidc, external identity provider)"
+  "claudeMdSummaryLine": "Auth: OAuth/SSO (angular-oauth2-oidc, external identity provider)",
+  "minAngularMajor": 22
 }

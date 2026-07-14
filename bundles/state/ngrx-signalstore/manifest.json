@@ -4,7 +4,9 @@
   "label": "NgRx SignalStore",
   "description": "Signal-first feature stores via @ngrx/signals for state shared across many components with non-trivial logic.",
   "claudeMdSummaryLine": "State: NgRx SignalStore (@ngrx/signals) — see .claude/rules/state.md for a known Angular-version compatibility note",
+  "minAngularMajor": 21,
+  "maxAngularMajor": 21,
   "knownIssues": [
-    "As of the version pinned in deps.fragment.json, @ngrx/signals's peerDependencies require @angular/core ^21.0.0. This project's locked base stack is the latest stable Angular (currently 22.x). This is a REAL, currently-unresolved peer-dependency conflict, not a hypothetical one — verify both versions' current peer-dependency ranges again at generation time (they may have converged since this was written) before assuming it's still a problem. If still mismatched: this is a per-project developer decision (e.g. accept an npm warning if the mismatch is compatible in practice, use npm 'overrides' knowingly, or pin Angular back for this project) — the generator does not decide this for you and should surface this note rather than silently installing."
+    "@ngrx/signals@21.1.1's peerDependencies require @angular/core ^21.0.0 exactly — verified against the live npm registry. This is now hard-enforced via minAngularMajor/maxAngularMajor (generate.js refuses the combination outside Angular 21), not just a warning — this note explains why the constraint exists. Re-verify @ngrx/signals's current peer range before assuming this window is still exactly v21-only; if it has widened, update minAngularMajor/maxAngularMajor to match rather than leaving this artificially narrow."
   ]
 }
