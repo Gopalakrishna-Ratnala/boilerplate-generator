@@ -1,0 +1,6 @@
+{
+  "deny": [
+    "Edit(./ngsw-config.json)",
+    "Write(./ngsw-config.json)"
+  ]
+}

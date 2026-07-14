@@ -16,7 +16,6 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
         message: error.error?.message ?? error.message ?? 'Unknown API error',
         url: req.url,
       };
-      // eslint-disable-next-line no-console
       console.error('[API Error]', normalized);
       return throwError(() => normalized);
     }),

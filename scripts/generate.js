@@ -38,7 +38,7 @@ const REPO_ROOT = path.resolve(__dirname, '..');
 const BASE_DIR = path.join(REPO_ROOT, 'base');
 const BUNDLES_DIR = path.join(REPO_ROOT, 'bundles');
 
-const AXES = ['auth', 'data-layer', 'state', 'roles', 'deploy-target'];
+const AXES = ['auth', 'data-layer', 'state', 'roles', 'deploy-target', 'i18n', 'offline'];
 
 // Commands that run for EVERY generated project, regardless of bundle selection —
 // company-wide standards, not per-client decisions. Contrast with a bundle's
@@ -242,19 +242,38 @@ function runBasePostGenerateCommands(projectDir, dryRun) {
   }
 }
 
-function fixEslintSelectorPrefix(projectDir, selectorPrefix) {
-  const eslintConfigPath = path.join(projectDir, 'eslint.config.js');
-  if (!fs.existsSync(eslintConfigPath) || selectorPrefix === 'app') return;
+function fixSelectorPrefix(projectDir, selectorPrefix) {
+  if (selectorPrefix === 'app') return;
 
-  // The @angular-eslint/schematics generator hardcodes prefix: 'app' regardless of
-  // this project's actual selector prefix (the same {{SELECTOR_PREFIX}} value used in
-  // CLAUDE.md and architecture.md). Left unfixed, the lint rule would actively
-  // conflict with our own documented naming convention for any project with a custom
-  // prefix. Single source of truth: the value passed via --selector-prefix.
-  let content = fs.readFileSync(eslintConfigPath, 'utf8');
-  content = content.split("prefix: 'app'").join(`prefix: '${selectorPrefix}'`);
-  fs.writeFileSync(eslintConfigPath, content);
-  info(`   ✓ Fixed eslint.config.js selector prefix to match this project's ("${selectorPrefix}").`);
+  // 1. The @angular-eslint/schematics generator hardcodes prefix: 'app' in its lint
+  // rules regardless of this project's actual selector prefix.
+  const eslintConfigPath = path.join(projectDir, 'eslint.config.js');
+  if (fs.existsSync(eslintConfigPath)) {
+    let content = fs.readFileSync(eslintConfigPath, 'utf8');
+    content = content.split("prefix: 'app'").join(`prefix: '${selectorPrefix}'`);
+    fs.writeFileSync(eslintConfigPath, content);
+  }
+
+  // 2. `ng new` itself always scaffolds the root component with selector 'app-root',
+  // regardless of --selector-prefix. Fixing only the lint rule (above) without also
+  // fixing the actual root component would make every freshly generated project fail
+  // its own lint immediately — found by actually running `ng lint` after combining
+  // multiple bundles, not by inspecting the fix in isolation.
+  const appTsPath = path.join(projectDir, 'src', 'app', 'app.ts');
+  if (fs.existsSync(appTsPath)) {
+    let content = fs.readFileSync(appTsPath, 'utf8');
+    content = content.split("selector: 'app-root'").join(`selector: '${selectorPrefix}-root'`);
+    fs.writeFileSync(appTsPath, content);
+  }
+
+  const indexHtmlPath = path.join(projectDir, 'src', 'index.html');
+  if (fs.existsSync(indexHtmlPath)) {
+    let content = fs.readFileSync(indexHtmlPath, 'utf8');
+    content = content.split('<app-root></app-root>').join(`<${selectorPrefix}-root></${selectorPrefix}-root>`);
+    fs.writeFileSync(indexHtmlPath, content);
+  }
+
+  info(`   ✓ Fixed selector prefix throughout (lint rule + root component + index.html) to "${selectorPrefix}".`);
 }
 
 // ---------------------------------------------------------------------------
@@ -544,7 +563,7 @@ function main() {
 
   runBasePostGenerateCommands(projectDir, dryRun);
   if (!dryRun) {
-    fixEslintSelectorPrefix(projectDir, selectorPrefix);
+    fixSelectorPrefix(projectDir, selectorPrefix);
   }
 
   applyBase(projectDir, placeholderValues);

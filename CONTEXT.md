@@ -4,15 +4,14 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-14 (session 11)
-**Status:** Reviewed angular.dev's actual doc structure against everything built —
-found and fixed a real, already-shipped bug (ESLint was never scaffolded, despite
-`CLAUDE.md` promising `ng lint` works) plus 2 real gaps (no `.mcp.json` for Claude Code,
-no error-handling/accessibility guidance). All fixed and tested this session. This was
-also a scope correction: the system isn't "5 axes and done" — it's the company's actual
-Angular standard, and Category-A universal fixes belong in `base/` regardless of client
-answers. Pushed to GitHub:
-`https://github.com/Gopalakrishna-Ratnala/boilerplate-generator` (branch `main`).
+**Last updated:** 2026-07-14 (session 12)
+**Status:** Category B built and tested — **2 new fixed axes added: `i18n` (single vs.
+multi-language) and `offline` (standard vs. PWA)**, extending the system from 5 to 7
+axes. `generate.js`, all bundles, and the skill updated consistently. **Two more real
+bugs found by combining all 7 axes in one real end-to-end test (build + lint + test,
+the most thorough validation any combination has received)** — both fixed. Pushed to
+GitHub: `https://github.com/Gopalakrishna-Ratnala/boilerplate-generator` (branch
+`main`).
 
 ---
 
@@ -116,7 +115,9 @@ boilerplate-generator/
 │   ├── data-layer/{mock, rest, graphql, realtime}/          # ✅ BUILT
 │   ├── state/{signals-only, ngrx-signalstore}/               # ✅ BUILT
 │   ├── roles/{single-role, rbac}/                           # ✅ BUILT
-│   └── deploy-target/{spa, ssr}/                            # ✅ BUILT
+│   ├── deploy-target/{spa, ssr}/                            # ✅ BUILT
+│   ├── i18n/{single-language, multi-language}/               # ✅ BUILT (session 12)
+│   └── offline/{standard, pwa}/                              # ✅ BUILT (session 12)
 └── scripts/
     └── generate.js                # ✅ BUILT AND END-TO-END TESTED (session 9)
 ```
@@ -656,27 +657,89 @@ confirming the base-layer copy mechanism is genuinely generic):
 other piece of this project. Full JSON validation re-run across the whole repo after
 these changes (all valid); `generate.js` syntax re-checked.
 
-## 18. Where things stand — Category A done, Category B open, next steps still user-driven
+## 18. Category B — ✅ built and tested (session 12): system extended from 5 to 7 axes
 
-Category A (this session) is complete. Still open, in priority order:
+Two new fixed axes added, following `BUNDLE-CONTRACT.md` exactly: **`i18n`**
+(`single-language` / `multi-language`) and **`offline`** (`standard` / `pwa`).
+`generate.js`'s `AXES` array extended, the skill's questions extended (both Case 1 and
+Case 2 phrasing for both new axes), `CLAUDE.md`'s `--i18n`/`--offline` flags added.
 
-1. **Real-world use** — the user should run `generate.js` directly and try the skill in
-   a live Claude Code session. Still the most valuable next validation, unchanged from
-   before this session.
-2. **Verify against true latest Angular (22.x)** on a real machine — still unverified in
-   this sandbox for the reason noted before (Node version). The ESLint schematic fix
-   specifically pinned to `@angular-eslint/schematics` requiring `@angular/cli >=22.0.0
-   <23.0.0` per its own peer dependency — this should resolve cleanly on a real Angular
-   22 machine, but was only tested here against the sandbox's auto-resolved Angular 21.
-3. **Category B — decide and build new fixed axes** (internationalization, PWA/offline,
-   possibly others) if the company wants them formalized as client-facing questions
-   rather than case-by-case developer decisions. Needs: extending `generate.js`'s
-   `AXES` array, new bundle folders per `BUNDLE-CONTRACT.md`, new skill questions (both
-   Case 1 and Case 2 phrasing). Bigger and more invasive than any Category A fix —
-   deserves its own dedicated session, not a rushed add-on.
-4. **Re-run the full audit pattern from §13** — still true that this has caught
-   something new almost every time it's been tried.
-5. Multi-select per axis, the open-axis "unsure" default behavior, and other previously
-   flagged "not fully resolved" items remain open, revisit only if real use surfaces a
-   need.
+**Both new "real" options followed the `deploy-target/ssr` precedent** (schematic-driven
+via `postGenerateCommands`, not hand-written files) — verified by actually running each
+schematic before deciding to use it, not assumed:
+- `i18n: multi-language` → `ng add @jsverse/transloco --skip-confirmation`. Verified
+  this schematic exists and genuinely works by running it directly; it even auto-wires
+  `app.config.ts` (better than the hand-copy approach used for `auth`/`data-layer`
+  bundles). **Deliberate, documented choice**: Transloco (runtime-switchable) over
+  Angular's own `@angular/localize` (compile-time, separate build per locale) — recorded
+  in the manifest's `knownIssues` field as a visible, correctable decision rather than a
+  silent one, since most real client "multi-language" requests mean an in-app switcher
+  with no rebuild, not locale-specific URLs.
+- `offline: pwa` → `ng add @angular/pwa --skip-confirmation`. Same verify-before-use
+  discipline.
+
+**Protection judgment calls, each reasoned independently rather than pattern-matched:**
+- `transloco.config.ts` and `transloco-loader.ts` protected (set-once bootstrap,
+  matching the `oauth.config.ts`/`server.ts` pattern) — but `public/i18n/*.json`
+  (the actual translation strings) deliberately left **editable**, since new keys are
+  added constantly, matching the `app.routes.server.ts` "don't protect what's routinely
+  extended" reasoning.
+- `ngsw-config.json` (PWA caching strategy) **protected**, breaking from the
+  "routinely-edited files stay open" pattern used for `app.routes.server.ts` — reasoned
+  independently: caching-strategy mistakes cause a specific, high-consequence,
+  hard-to-diagnose bug class (real users silently seeing stale content), and changes to
+  it are infrequent, not routine — a different risk/frequency trade-off than adding a
+  new SSR route, so it gets the opposite protection decision.
+
+**Two more real bugs found — by combining all 7 axes in one real test and running
+`ng lint` + `ng test`, not just generation:**
+
+1. **A bug in the Category A ESLint-prefix fix from the previous session, only
+   surfaced now.** That fix corrected the *lint rule's* expected selector prefix but
+   never touched the *actual root component* (`app.ts`'s `selector: 'app-root'`) or
+   `index.html`'s `<app-root>` usage — both still hardcoded to `'app'` by `ng new`
+   regardless of the project's real prefix. Every single project generated by this
+   system, even before this session (since the default prefix is derived from the
+   project name, not literally `'app'`), would have failed its own lint immediately.
+   **This was caught by running `ng lint` on a real combined-bundle output** — the
+   original fix's own testing (session 11) only checked the lint *rule text* changed,
+   not that the actual scaffolded files conformed to it. Fixed: renamed
+   `fixEslintSelectorPrefix` to `fixSelectorPrefix`, expanded to also rename
+   `app.ts`'s selector and `index.html`'s tag usage. **Verified**: re-ran the full
+   7-axis combination, confirmed `ng lint` → "All files pass linting," confirmed
+   `ng test` → both tests pass, confirmed a real `ng build` succeeded as part of the
+   test run.
+2. **A small, unrelated pre-existing bug in the `data-layer/rest` bundle**: a stray
+   `// eslint-disable-next-line no-console` comment above a `console.error(...)` call,
+   for a rule (`no-console`) that was never actually enabled in this project's real
+   ESLint config — causing an "unused eslint-disable directive" lint warning on every
+   project using `data-layer: rest`. Removed.
+
+**This is now the most thoroughly validated single combination in the whole project** —
+not just "does `generate.js` run without crashing" (the earlier bar), but a real
+`ng build`, `ng lint`, and `ng test`, all passing, on a project combining 2 CLI
+schematics stacked on top of each other (`ng add @jsverse/transloco` then
+`ng add @angular/pwa`) plus 5 hand-copied bundles. Worth repeating this exact
+build+lint+test discipline (not just "does generation succeed") for any future bundle
+work — it caught something the lighter checks didn't.
+
+Full JSON validation re-run across the entire repo after all changes — clean.
+
+## 19. Where things stand — Category A and B both done, next steps still user-driven
+
+1. **Real-world use** — still the most valuable next step, unchanged in priority from
+   before. The user should run `generate.js` directly and try the skill in a live
+   Claude Code session.
+2. **Verify against true latest Angular (22.x)** on a real machine — still the single
+   biggest untested gap. Every schematic used this session (`@angular-eslint/schematics`,
+   `@jsverse/transloco`, `@angular/pwa`) resolved a compatible version automatically in
+   this sandbox rather than the literal latest, for the same Node-version reason noted
+   since session 9.
+3. **Re-run the full audit pattern from §13** — now covering 7 axes across 18 total
+   bundle options (up from 10) — this has caught something new literally every time
+   it's been tried, no reason to expect that stops now.
+4. Multi-select per axis, the open-axis "unsure" default behavior, other previously
+   flagged "not fully resolved" items, and any further Category B candidates (the
+   original gap list mentioned animations complexity as a possible third new axis, not
+   pursued this session) remain open — revisit only if real use surfaces a need.
 

@@ -1,0 +1,13 @@
+{
+  "axis": "i18n",
+  "option": "multi-language",
+  "label": "Multi-language",
+  "description": "Runtime-switchable language support (no rebuild needed to change language) via Transloco, added through its own CLI schematic.",
+  "claudeMdSummaryLine": "i18n: multi-language (Transloco, runtime-switchable, added via ng add schematic)",
+  "postGenerateCommands": [
+    "ng add @jsverse/transloco --skip-confirmation"
+  ],
+  "knownIssues": [
+    "This project uses Transloco (community, runtime-switchable) rather than Angular's own official @angular/localize (first-party, but requires a separate build per locale, typically served at different URLs like /en/ and /fr/). This was a deliberate choice, not an oversight: most real client requests for 'multi-language support' mean an in-app language switcher with no rebuild, which matches Transloco's model, not @angular/localize's. If a project specifically needs @angular/localize instead (e.g. for SEO reasons requiring locale-specific URLs, or a company preference for first-party-only dependencies), that's a developer decision to make instead of this bundle option — flag it rather than silently using Transloco if that assumption seems wrong for a given project."
+  ]
+}

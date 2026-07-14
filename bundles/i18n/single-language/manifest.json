@@ -1,0 +1,7 @@
+{
+  "axis": "i18n",
+  "option": "single-language",
+  "label": "Single language",
+  "description": "No internationalization tooling. All text is hardcoded in the language the app is built for.",
+  "claudeMdSummaryLine": "i18n: single language (no translation tooling)"
+}

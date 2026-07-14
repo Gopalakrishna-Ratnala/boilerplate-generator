@@ -1,0 +1,8 @@
+{
+  "deny": [
+    "Edit(./transloco.config.ts)",
+    "Edit(./src/app/transloco-loader.ts)",
+    "Write(./transloco.config.ts)",
+    "Write(./src/app/transloco-loader.ts)"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "axis": "offline",
+  "option": "pwa",
+  "label": "PWA / offline support",
+  "description": "Installable, offline-capable via a service worker, added through Angular's own official @angular/pwa schematic.",
+  "claudeMdSummaryLine": "Offline: PWA (service worker via @angular/pwa, added via ng add schematic)",
+  "postGenerateCommands": [
+    "ng add @angular/pwa --skip-confirmation"
+  ]
+}

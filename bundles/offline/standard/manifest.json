@@ -1,0 +1,7 @@
+{
+  "axis": "offline",
+  "option": "standard",
+  "label": "Standard (no offline support)",
+  "description": "No service worker, no offline caching. Requires an active network connection.",
+  "claudeMdSummaryLine": "Offline: standard (no service worker/PWA)"
+}

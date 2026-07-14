@@ -28,7 +28,7 @@ This decides which question phrasing you use below — Case 1 (technical) or Cas
 (non-technical). Don't guess from context; ask directly if it isn't already obvious from
 the conversation.
 
-## Step 2 — Ask the 5 required questions, one at a time
+## Step 2 — Ask the 7 required questions, one at a time
 
 Ask these **one at a time**, not all at once — wait for each answer before asking the
 next. Use Case 1 phrasing if the person said technical, Case 2 if non-technical.
@@ -134,6 +134,42 @@ user so the wait isn't a surprise.*
 
 ---
 
+### Q6 — Internationalization → `--i18n`
+
+**Case 1 (technical):** "Does this need to support multiple languages with runtime
+switching, or is a single language fine?"
+- Single language → `single-language`
+- Multiple languages, switchable in-app without a rebuild → `multi-language`
+
+**Case 2 (non-technical):** "Will people using this app need to switch between
+different languages, or is it just for one language?"
+- Just one language → `single-language`
+- Yes, people need to switch languages → `multi-language`
+
+*Note: this project's `multi-language` option uses Transloco (an in-app language
+switcher, no rebuild needed) rather than Angular's own compile-time i18n system, which
+would require a separate build per language served at different URLs. If a project
+specifically needs the latter (e.g. for locale-specific SEO), flag that to a developer
+rather than assuming Transloco is always right.*
+
+---
+
+### Q7 — Offline / installable support → `--offline`
+
+**Case 1 (technical):** "Does this need offline support or to be installable as a PWA
+(service worker, works without a network connection), or is a standard always-online
+web app fine?"
+- Standard, always-online → `standard`
+- Offline-capable / installable (PWA) → `pwa`
+
+**Case 2 (non-technical):** "Does this need to work when someone's internet connection
+drops, or be something people can 'install' on their phone/computer like an app — or is
+it fine to require an internet connection at all times?"
+- Fine to always require internet → `standard`
+- Needs to work offline / be installable → `pwa`
+
+---
+
 ## Step 3 — Cosmetic/open questions (no bundle impact)
 
 These do **not** map to `generate.js` flags — they're for the human designer to keep in
@@ -160,7 +196,8 @@ Ask for:
 ## Step 5 — Run generate.js
 
 Confirm the full set of answers back to the user in one short summary before running
-anything ("Auth: X, Data layer: Y, State: Z, Roles: W, Deploy target: V, pushing to
+anything ("Auth: X, Data layer: Y, State: Z, Roles: W, Deploy target: V, i18n: U,
+Offline: T, pushing to
 <repo>— is that right?"). Then, once confirmed, run:
 
 ```bash
@@ -171,6 +208,8 @@ GITHUB_TOKEN=<token, if pushing> node scripts/generate.js \
   --state=<value> \
   --roles=<value> \
   --deploy-target=<value> \
+  --i18n=<value> \
+  --offline=<value> \
   --description="<combined cosmetic notes>" \
   --repo=<url>
 ```
