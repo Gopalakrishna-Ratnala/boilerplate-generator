@@ -40,9 +40,13 @@ Rules:
 
 ## File & class naming
 
-- File name: no type suffix — `user.ts`, not `user.component.ts`.
-- Class name: descriptive and typed — `UserProfile`, `UserApiService`, `AuthGuard`.
-- Test file: same name + `.spec.ts`, colocated — `user.ts` + `user.spec.ts`.
+- File name: traditional type-suffix convention — `auth.guard.ts`, `auth.service.ts`,
+  `auth.interceptor.ts`, `has-role.directive.ts`, `user.model.ts`. This matches every
+  file this project's boilerplate bundles actually ship (not a stylistic preference —
+  it's what's already implemented and tested).
+- Class name: matches the file's subject and type — `AuthGuard`, `AuthService`,
+  `UserModel`.
+- Test file: same name + `.spec.ts`, colocated — `auth.service.ts` + `auth.service.spec.ts`.
 - Selector prefix: `{{SELECTOR_PREFIX}}-` on every custom component selector.
 
 ## Where new code goes (quick reference for an AI agent)
@@ -59,3 +63,27 @@ Rules:
 
 If a new file doesn't clearly fit one of these, stop and ask rather than guessing a new
 top-level folder.
+
+## Container vs. presentational components
+
+- **Container (a.k.a. "smart") components** live under `features/<name>/pages/` (or
+  directly in the feature root if there's no separate `pages/` split) — they own state,
+  make API calls (via a service, never `HttpClient` directly — see `data-layer`'s rule
+  file), and handle routing. A feature typically has few of these.
+- **Presentational (a.k.a. "dumb") components** live under `shared/components/` (if
+  reusable across features) or `features/<name>/components/` (if specific to one
+  feature) — they take input via `input()`, emit via `output()`, and don't reach out to
+  services or hold app state themselves. A feature typically has several of these.
+- New UI work defaults to presentational unless it genuinely needs to own state or make
+  API calls — most bugs from over-complicated components come from skipping this split
+  and building one component that does everything.
+
+## Unsaved-changes / navigation guards
+
+- If a feature has a form or other state a user could lose by navigating away
+  accidentally (a multi-step wizard, an edit form with unsaved changes), add a
+  `CanDeactivate` functional guard rather than leaving it unprotected — silently losing
+  a user's input is a common, avoidable frustration.
+- Keep the guard generic and reusable (e.g. a shared `hasUnsavedChanges` guard that
+  calls a `canDeactivate(): boolean` method the component implements) rather than
+  writing a bespoke one-off guard per feature.

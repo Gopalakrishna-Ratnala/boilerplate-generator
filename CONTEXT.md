@@ -4,18 +4,22 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-14 (session 14)
-**Status:** User provided two reference templates (`ai-ready-react-template` and its
-Angular port, `ai-ready-angular-template`) — existing company convention for `.claude/`
-structure. Compared both against our system in depth. Adopted 4 concrete improvements:
-2 new content-based hooks ported from React (framework-agnostic, straight port), 2
-deliberately **re-adapted for Angular** rather than blindly copied (a blanket
-`<div>`/`<span>` ban would be wrong for Angular; a shadcn-specific color-token
-convention doesn't apply since we don't mandate a UI library). Also added a
-consolidated anti-patterns/validation-checklist file, another pattern found in the
-reference templates. **2 real bugs found and fixed while testing the new hooks** — not
-just "does it run," but real block/pass verification, same discipline as everything
-else. Pushed to GitHub:
+**Last updated:** 2026-07-14 (session 16)
+**Status:** User asked another AI agent for Angular coding standards and had us
+cross-check the result (37 numbered points + a review checklist) against everything
+built so far. Found and resolved: **a real self-contradiction** (our own `CLAUDE.md`
+said "no file-type suffix" while every actual bundle file already used the suffixed
+convention — resolved in favor of the already-implemented, already-tested code, not
+the prose), 5 more hooks ported/adapted from the Angular reference template, an
+ESLint tightening (`no-explicit-any` → error), Husky + lint-staged setup (new to
+`generate.js`), and 6 rule-file additions (RxJS operators, `takeUntilDestroyed`,
+immutable updates, explicit template-method-call rule, smart/dumb components,
+`CanDeactivate`). **Also found the most serious bug yet**: `src/environments/` hasn't
+been scaffolded by `ng new` since Angular 15 — every project this system has ever
+generated using the `rest`/`graphql`/`realtime` data-layer bundles would have failed
+its **production build** (`ng build`), undetected until this session because prior
+testing only ran `ng lint`/`ng test`, never `ng build`. Fixed and verified across all
+three affected bundles. Pushed to GitHub:
 `https://github.com/Gopalakrishna-Ratnala/boilerplate-generator` (branch `main`).
 
 ---
@@ -120,17 +124,27 @@ boilerplate-generator/
 │   ├── CLAUDE.md
 │   ├── .mcp.json                  # ✅ BUILT (session 11) — Angular CLI MCP server for Claude Code
 │   └── .claude/
-│       ├── settings.json
-│       ├── rules/
-│       │   ├── angular.md
-│       │   ├── architecture.md
+│       ├── settings.json          # 12 hooks wired (session 16)
+│       ├── rules/                 # 14 files
+│       │   ├── angular.md         # incl. RxJS, takeUntilDestroyed, immutability (session 16)
+│       │   ├── architecture.md    # incl. smart/dumb components, CanDeactivate (session 16)
 │       │   ├── security.md
-│       │   ├── error-handling.md  # ✅ BUILT (session 11)
-│       │   └── accessibility.md   # ✅ BUILT (session 11)
-│       └── hooks/
+│       │   ├── error-handling.md
+│       │   ├── accessibility.md
+│       │   └── anti-patterns-checklist.md  # ✅ BUILT (session 14)
+│       └── hooks/                 # 12 total (session 16)
 │           ├── protect-paths.sh
 │           ├── guard-bash.sh
-│           └── format-and-lint.sh
+│           ├── format-and-lint.sh
+│           ├── check-tsc.sh                       # session 14
+│           ├── check-dependency-security.sh       # session 14
+│           ├── check-interactive-div-span.sh      # session 14, Angular-adapted
+│           ├── check-hardcoded-colors.sh          # session 14, Angular-adapted
+│           ├── check-for-track.sh                 # session 16
+│           ├── check-hardcoded-api-url.sh         # session 16, adapted
+│           ├── check-missing-spec.sh              # session 16
+│           ├── check-mixed-input-apis.sh          # session 16
+│           └── check-no-httpclient-in-component.sh # session 16, new
 ├── bundles/
 │   ├── BUNDLE-CONTRACT.md         # ✅ BUILT — fixed structure every bundle follows
 │   ├── auth/{none, basic-auth, oauth-sso, saml}/           # ✅ BUILT
@@ -890,21 +904,127 @@ wired, and — critically — the new interactive-div-span hook actually fires c
 when invoked from *within* the real generated project's own file tree, not just in
 isolation.
 
-## 21. Where things stand — Category A, B, the security deep-dive, and reference-template comparison all done
+## 21. Enterprise standards cross-check (session 16) — a self-contradiction, a critical bug, and 11 real gaps closed
+
+User asked a different AI agent for Angular coding standards (37 numbered points + a
+review checklist) and had this cross-checked against everything built. Systematically
+verified each point against actual rule files (grep, not assumption) before accepting or
+rejecting anything.
+
+**Resolved: a real self-contradiction, not just a stylistic choice.** Our own
+`CLAUDE.md`/`architecture.md` said "no file-type suffix — `user.ts`, not
+`user.service.ts`" (current official Angular style guide), but a `find` across every
+actual bundle file showed **14+ real files, zero exceptions**, all using the
+traditional suffixed convention (`auth.guard.ts`, `auth.service.ts`,
+`error.interceptor.ts`, etc.) — the enterprise document showed this same traditional
+convention. **Resolved in favor of the already-implemented, already-tested code, not
+the prose** — renaming 14+ files and every cross-file import path for a stylistic
+preference would have been high-risk, low-value rework; fixing two files' prose was not.
+`CLAUDE.md` and `architecture.md` updated to describe reality.
+
+**5 more hooks added, checked against reference templates first, adapted where genuinely
+needed:**
+- `check-for-track.sh`, `check-missing-spec.sh`, `check-mixed-input-apis.sh` — direct
+  ports (already Angular-specific in the reference template, no adaptation needed).
+- `check-hardcoded-api-url.sh` — adapted: skip-list updated to this project's actual
+  config file names (`api.config.ts`/`graphql.config.ts`/`realtime.config.ts`/
+  `oauth.config.ts`) instead of the reference template's.
+- `check-no-httpclient-in-component.sh` — new, not from either reference template:
+  enforces "components depend on a service, never `HttpClient` directly"
+  (`architecture.md`), which was previously prose-only.
+- Hooks total: 7 → **12**.
+
+**ESLint tightened**: `@typescript-eslint/no-explicit-any` → `error` (was `warn` by
+default from the schematic, meaning `any` never actually failed `ng lint` despite our
+own rule saying "never use `any`"). **A `no-console: error` tightening was tried and
+reverted** — found, by actually running the full pipeline, that it breaks on Angular's
+own default-generated `src/main.ts` (`.catch((err) => console.error(err))` is Angular's
+own idiomatic bootstrap pattern in every CLI-generated project, not something this
+system should override).
+
+**Husky + lint-staged added to `generate.js`** (new `setupHuskyAndLintStaged()`,
+Category A/universal) — uses the real `husky init` command for the tricky part (git
+`core.hooksPath` wiring) rather than hand-constructing `.husky/`, then customizes the
+resulting `pre-commit` to run `lint-staged` instead of husky's own default `npm test`.
+**Verified for real**: the hook genuinely fired during this system's own test runs and
+blocked/passed a real `git commit` based on real `eslint --fix`/`prettier` results —
+not just "the files exist."
+
+**6 rule-file additions**, each confirmed genuinely absent via `grep` before being
+added (not assumed): RxJS operator guidance (avoid nested subscriptions;
+`switchMap`/`mergeMap`/`concatMap`/`exhaustMap` and when each fits), `takeUntilDestroyed()`
+for manual subscription cleanup (previously only mentioned inside the `realtime`
+bundle, not as a general rule), immutable array/object updates, an explicit
+"don't call non-trivial methods in templates" rule with the actual reasoning
+(change-detection re-evaluation), the smart/container vs. dumb/presentational component
+split, and a `CanDeactivate`/unsaved-changes guard pattern (previous guards only covered
+auth/roles).
+
+**The most serious bug found this session, and the reason "always run `ng build`" is
+now a permanent addition to this project's testing discipline:** `src/environments/`
+has not been scaffolded by `ng new` since Angular 15 — confirmed via a real generation
++ `ng build` run, which failed with `TS2307: Cannot find module
+'../../../environments/environment'`. **Every project this system has ever generated
+using the `rest`, `graphql`, or `realtime` data-layer bundles would have failed its
+production build** — undetected across 6+ prior sessions of testing because validation
+only ever ran `ng lint` and `ng test`/`ng serve`-equivalent checks, never a real
+`ng build`. Vitest's transform pipeline apparently doesn't hard-fail the same way on
+this particular missing-module case, which is exactly why lint+test passing was a false
+signal of correctness all along.
+
+Fixed with the same "prefer the real schematic" principle used for SSR/Transloco/PWA:
+added `ng generate environments` to `BASE_POST_GENERATE_COMMANDS` (confirmed via direct
+testing that this schematic exists, works, and correctly wires `fileReplacements` in
+`angular.json`) — but the schematic only produces an *empty* `environment.ts`
+(`export const environment = {};`), so a new `populateEnvironmentFiles()` function
+fills in the actual fields every data-layer bundle's config file references
+(`apiUrl`, `graphqlUrl`, `realtimeUrl`, `production`), sourced by grepping the real
+bundle files rather than guessing. **Verified across all three previously-broken
+bundles individually** (`rest`, `graphql`, `realtime`) — each now produces a clean
+`ng build`, confirmed by inspecting the actual `dist/` output, not just a zero exit
+code.
+
+**One caught-and-fixed self-inflicted bug during this same testing pass**: an early
+`str_replace` edit to `generate.js` accidentally swallowed a function signature line
+(`function setupHuskyAndLintStaged(...) {`), producing a dangling brace — caught
+immediately by `node --check` (the same syntax-check-after-every-edit discipline used
+throughout this project), not left for a later test run to discover.
+
+**Also encountered, correctly identified as pre-existing/expected, not new**: testing
+`oauth-sso` + `graphql` together hit `angular-oauth2-oidc@22.0.2`'s peer dependency
+requiring `@angular/common@>=22.0.0` against this sandbox's auto-resolved Angular
+`21.2.18` — the same sandbox-Node-version limitation documented since session 9, not a
+new bug. Correctly distinguished from the real bugs above by checking the actual npm
+error report rather than assuming.
+
+Full JSON validation and `generate.js` syntax check re-run clean after all changes.
+
+## 22. Where things stand — Category A, B, security deep-dive, reference-template comparison, and enterprise standards cross-check all done
+
+**Permanent addition to this project's testing discipline, effective immediately**:
+**every full validation pass must include a real `ng build`, not just `ng lint` and
+`ng test`.** This was learned the hard way this session — the missing-`environments/`
+bug was invisible to lint and test across 6+ prior sessions and would have shipped to
+every real user of the `rest`/`graphql`/`realtime` bundles undetected. `ng lint` + `ng
+test` passing is not sufficient evidence a generated project actually works.
 
 1. **Real-world use** — still the most valuable next step, unchanged in priority from
    before. The user should run `generate.js` directly and try the skill in a live
    Claude Code session.
 2. **Verify against true latest Angular (22.x)** on a real machine — still the single
-   biggest untested gap. Every schematic used this session (`@angular-eslint/schematics`,
-   `@jsverse/transloco`, `@angular/pwa`) resolved a compatible version automatically in
-   this sandbox rather than the literal latest, for the same Node-version reason noted
-   since session 9.
+   biggest untested gap. Every schematic used across sessions
+   (`@angular-eslint/schematics`, `@jsverse/transloco`, `@angular/pwa`, `ng generate
+   environments`, `husky init`) resolved a compatible version automatically in this
+   sandbox rather than the literal latest, for the same Node-version reason noted since
+   session 9. Given this session found a production-build-breaking bug that lint/test
+   alone couldn't catch, **this verification matters more than previously stated** —
+   there could be other version-specific issues only a real Angular 22 + real Node
+   build would surface.
 3. **Re-run the full audit pattern from §13** — now covering 7 axes across 18 total
-   bundle options (up from 10) — this has caught something new literally every time
-   it's been tried, no reason to expect that stops now.
+   bundle options, 12 hooks, and a substantially larger `angular.md`/`architecture.md`
+   — this has caught something new literally every time it's been tried, no reason to
+   expect that stops now.
 4. Multi-select per axis, the open-axis "unsure" default behavior, other previously
-   flagged "not fully resolved" items, and any further Category B candidates (the
-   original gap list mentioned animations complexity as a possible third new axis, not
-   pursued this session) remain open — revisit only if real use surfaces a need.
+   flagged "not fully resolved" items, and any further Category B candidates remain
+   open — revisit only if real use surfaces a need.
 

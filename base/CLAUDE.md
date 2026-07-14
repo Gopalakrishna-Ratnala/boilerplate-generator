@@ -85,11 +85,12 @@ structure without asking first.
 
 ## Naming conventions
 
-- Files: `user.ts`, `user.spec.ts` (no `.component`/`.service` suffix in the filename,
-  per current Angular style guide) — but the **class name** stays descriptive:
-  `export class UserProfile { ... }`, `export class UserApiService { ... }`.
+- Files: `auth.guard.ts`, `auth.service.ts`, `auth.interceptor.ts`, `user.model.ts`
+  (traditional type-suffix convention — matches every file this project's boilerplate
+  bundles actually ship, and most existing Angular/enterprise codebases). Class names
+  match: `export class AuthGuard { ... }`, `export class AuthService { ... }`.
 - Selectors: kebab-case with the `{{SELECTOR_PREFIX}}-` prefix, e.g. `{{SELECTOR_PREFIX}}-user-card`.
-- Tests live next to the file they test: `user.ts` + `user.spec.ts`.
+- Tests live next to the file they test: `auth.service.ts` + `auth.service.spec.ts`.
 
 ## Commit conventions
 

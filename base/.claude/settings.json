@@ -89,6 +89,22 @@
           {
             "type": "command",
             "command": "bash .claude/hooks/check-hardcoded-colors.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-for-track.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-hardcoded-api-url.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-mixed-input-apis.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-no-httpclient-in-component.sh"
           }
         ]
       },
@@ -118,6 +134,15 @@
           {
             "type": "command",
             "command": "bash .claude/hooks/check-tsc.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/check-missing-spec.sh"
           }
         ]
       }

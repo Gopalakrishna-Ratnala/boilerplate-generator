@@ -35,8 +35,13 @@
 - `@for` **must** have a `track` expression.
 - Use the `async` pipe for observables in templates rather than manual `subscribe()` +
   local field, unless the component genuinely needs the value outside the template too.
-- Keep templates logic-light — non-trivial logic belongs in the component class
-  (`computed()`, a plain method), not inline in the template expression.
+- **Never call a method directly in a template expression for anything beyond a
+  trivial, side-effect-free one-liner** — `{{ calculateTotal() }}` re-runs on every
+  change-detection cycle, not just when its inputs change. Use `computed()` for
+  anything derived from state; a plain method call in a template is only fine for
+  something genuinely cheap and stable (e.g. `{{ formatLabel(item) }}` where
+  `formatLabel` is a pure, trivial format helper) — if it does real work, it belongs in
+  a `computed()`.
 - **Name event handlers for what they do, not the event that triggers them** — per
   Angular's own style guide, `commitNotes()` reads better than `onKeydown()`. Reserve a
   generic name like `handleKeydown()` only for genuinely complex cases that delegate to
@@ -55,6 +60,37 @@
   SignalStore) is fixed by the `state` bundle already selected for this project — see
   `.claude/rules/state.md`. Do not introduce a different state pattern for the same
   concern.
+- **Update arrays/objects immutably.** `items.update(list => [...list, newItem])`, not
+  `items().push(newItem)` — mutating the underlying array/object in place doesn't
+  reliably trigger change detection with signals and makes state changes harder to
+  reason about/debug. The same applies to any plain array/object held outside a
+  signal too — prefer spread/`Array.prototype` methods that return a new
+  array (`.map()`, `.filter()`) over in-place mutation (`.push()`, `.splice()`,
+  direct property assignment on a shared object).
+
+## RxJS
+
+- **Avoid nested subscriptions** — `a.subscribe(x => b.subscribe(...))` loses
+  cancellation, is hard to read, and easily leaks. Use a flattening operator instead:
+  - `switchMap` — cancels the previous inner observable when a new outer value
+    arrives (the common case — e.g. a search-as-you-type request).
+  - `mergeMap` — runs all inner observables concurrently, no cancellation.
+  - `concatMap` — queues inner observables, runs them strictly in order.
+  - `exhaustMap` — ignores new outer values while an inner observable is still
+    running (e.g. a submit button that shouldn't double-fire).
+  Picking the wrong one is a common, subtle bug source — if unsure which fits, default
+  to `switchMap` for "latest wins" cases and flag anything more complex for review.
+- **Clean up manual subscriptions** with `takeUntilDestroyed()`:
+  ```ts
+  private destroyRef = inject(DestroyRef);
+  constructor() {
+    someObservable$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(...);
+  }
+  ```
+  Prefer this over an `ngOnDestroy()` + manually-tracked `Subscription.unsubscribe()`.
+  Better still, prefer the `async` pipe or `toSignal()` over a manual `subscribe()` in
+  the first place (see Templates) — `takeUntilDestroyed()` is for the cases where a
+  manual subscription is genuinely necessary.
 
 ## Deferred loading & performance
 
