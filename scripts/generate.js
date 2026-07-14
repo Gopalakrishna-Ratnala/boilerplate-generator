@@ -768,6 +768,42 @@ function enableZonelessForLegacyVersion(projectDir, targetAngularMajor) {
   }
 
   info(`   ✓ Removed zone.js from angular.json polyfills (build + test) and package.json.`);
+
+  // 4. The CLI-generated root component spec file bootstraps its own TestBed module,
+  // separately from app.config.ts — it does NOT inherit the zoneless provider just
+  // added there. Left unfixed, `ng test` throws NG0908 ("this configuration requires
+  // Zone.js") because the test injector falls back to expecting zone.js, which no
+  // longer exists in this project. This was NOT caught by this project's own sandbox
+  // testing (no Chrome binary available to actually run Karma) — found via a real
+  // `npm test` run on a real machine, during the user's own verification pass. Same
+  // dual-candidate-filename handling as the root component fix above (v19:
+  // app.component.spec.ts, v20+: app.spec.ts).
+  for (const candidateName of ['app.spec.ts', 'app.component.spec.ts']) {
+    const specPath = path.join(projectDir, 'src', 'app', candidateName);
+    if (!fs.existsSync(specPath)) continue;
+
+    let specContent = fs.readFileSync(specPath, 'utf8');
+    const oldModuleConfig = /TestBed\.configureTestingModule\(\{\s*\n(\s*)imports: (\[[^\]]*\]),\s*\n\s*\}\)/;
+    const match = specContent.match(oldModuleConfig);
+
+    if (match) {
+      const [fullMatch, indent, importsValue] = match;
+      const replacement =
+        `TestBed.configureTestingModule({\n${indent}imports: ${importsValue},\n${indent}providers: [${providerName}()],\n  })`;
+      specContent = specContent.replace(fullMatch, replacement);
+      // Add the import — the spec file has no existing @angular/core import to merge
+      // into (only '@angular/core/testing' and the component import), so add a new line.
+      specContent = `import { ${providerName} } from '@angular/core';\n` + specContent;
+      fs.writeFileSync(specPath, specContent);
+      info(`   ✓ Added ${providerName}() to ${candidateName}'s TestBed providers (fixes NG0908).`);
+    } else {
+      warn(
+        `Expected to find TestBed.configureTestingModule({ imports: [...] }) in ` +
+          `${candidateName} but the pattern didn't match — the CLI's scaffolded spec file ` +
+          'may have changed. This project\'s ng test will likely fail with NG0908; flag for review.'
+      );
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

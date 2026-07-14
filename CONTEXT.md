@@ -4,17 +4,21 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-14 (session 19)
-**Status:** User caught a real gap: version-gated bundling was fully built and tested
-(session 18) but never actually reachable — the `new-angular-project` skill never asked
-about Angular version at all, always silently defaulting to latest. Decided explicitly
-(not assumed): **add it as a real, always-asked question**, asked early (Step 2, before
-the 8 axis questions) since the chosen version can invalidate specific axis answers
-(`oauth-sso` needs ≥22; `ngrx-signalstore`/`primeng` need exactly 21) — better to know
-that before asking those questions than to walk back an answer afterward. Skill now has
-7 steps instead of 6; re-verified the resulting flag pattern with a real
-`generate.js` dry-run. Pushed to GitHub:
-`https://github.com/Gopalakrishna-Ratnala/boilerplate-generator` (branch `main`).
+**Last updated:** 2026-07-14 (session 20)
+**Status:** **First real-machine confirmation of a bug this project could only ever
+flag as a risk, not verify** — the user ran the actual `TESTING-PLAN.md` battery via
+their own Claude Code session on a real machine with real Chrome, and hit exactly the
+Karma/zoneless gap `CONTEXT.md` §23 predicted: `NG0908` ("this configuration requires
+Zone.js") on `npm test` for an Angular 19/20 zoneless project. Root cause: the
+CLI-generated root component spec file bootstraps its own `TestBed` module,
+independent of `app.config.ts`, and never inherited the zoneless provider added there.
+User chose to fix the generator, not patch the one-off project. Fixed
+`enableZonelessForLegacyVersion()` to also patch the spec file
+(`app.spec.ts`/`app.component.spec.ts`), verified via real regeneration + lint + build
+for both v19 and v20 — **actual `npm test` re-confirmation still pending on the user's
+machine**, since this sandbox still has no Chrome binary to run Karma itself. Pushed to
+GitHub: `https://github.com/Gopalakrishna-Ratnala/boilerplate-generator` (branch
+`main`).
 
 ---
 
@@ -1228,7 +1232,50 @@ matches `generate.js`'s real `AXES`/`args` exactly, and a real dry-run using the
 flag pattern the updated skill would now produce (`--angular-version=21` +
 `ngrx-signalstore` + `primeng` together) completed cleanly.
 
-## 25. Where things stand — everything through session 19 done
+## 25. First real-machine bug confirmation: NG0908 zoneless test failure (session 20)
+
+The user actually ran `TESTING-PLAN.md` via their own Claude Code session, on a real
+machine with real Chrome — the first time anything in this project's testing has run
+outside this sandbox's constraints. It immediately surfaced the exact gap §23 could
+only flag as a risk: `npm test` on an Angular 19/20 zoneless-enabled generated project
+threw `NG0908` ("this configuration requires Zone.js").
+
+**Root cause, diagnosed correctly by the user's own Claude Code session before this
+one even saw it**: `enableZonelessForLegacyVersion()` (session 18) adds the zoneless
+provider to `app.config.ts` — but the CLI-generated root component spec file
+(`app.spec.ts`/`app.component.spec.ts`) bootstraps its **own**, separate `TestBed`
+module via `TestBed.configureTestingModule({ imports: [...] })`, which does not
+inherit anything from `app.config.ts`. The test injector fell back to expecting
+zone.js, didn't find it (since it had been correctly stripped), and threw.
+
+**Decision point handled correctly by the user**: presented with "patch the one
+generated project" vs. "fix the generator," chose the generator fix — consistent with
+every prior instance of this same choice throughout this project (the `.env`
+protection gap, the environments/ bug, the prettier gap, all fixed at the source, not
+patched per-project).
+
+**Fix**: extended `enableZonelessForLegacyVersion()` with a 4th step — locates the spec
+file (checking both v19's `app.component.spec.ts` and v20+'s `app.spec.ts`, same
+dual-candidate pattern as the root-component fix), adds the correct version-specific
+zoneless provider to its `TestBed.configureTestingModule`'s `providers` array via a
+regex-captured, indentation-preserving replacement (not a naive string anchor, given
+the quote/format lessons from session 18), and adds the corresponding import.
+
+**Verified**: real regeneration for both v19 and v20, `ng lint` clean on both, `ng
+build` clean on v20 (v19 build already confirmed clean in session 18, unaffected by
+this change). **Genuinely honest limitation, not glossed over**: this sandbox still has
+no Chrome binary, so the actual `npm test`/Karma run — the only thing that can
+*truly* confirm `NG0908` itself is resolved — could not be re-executed here. The fix
+follows Angular's own documented, standard pattern for injecting TestBed providers, so
+it should resolve the error, but **the user's own re-run on their real machine is what
+actually closes this loop**, not this session's build/lint checks alone.
+
+This is also the first real evidence that `TESTING-PLAN.md` (session, unnumbered —
+created between sessions 19 and 20) works as intended: a real-machine test battery run
+by the user's own Claude Code session found a genuine bug this sandbox structurally
+could not have found itself, and it got fixed at the source within one turnaround.
+
+## 26. Where things stand — everything through session 20 done
 
 **Permanent addition to this project's testing discipline, effective immediately**:
 **every full validation pass must include a real `ng build`, not just `ng lint` and
@@ -1256,9 +1303,12 @@ v20's differently-formatted (but equally valid) schematic output — found only 
 v20 was actually generated and built this session. A fix that works on one version's
 generated output is not proven to work on another's without testing it.
 
-1. **Real-world use** — still the most valuable next step, unchanged in priority from
-   before. The user should run `generate.js` directly and try the skill in a live
-   Claude Code session.
+1. **Real-world use — actually in progress now, not just planned.** The user is
+   running `TESTING-PLAN.md` via their own Claude Code session on a real machine, and
+   it already found and got a real bug fixed (§25) in its first pass. **Highest
+   priority right now: get the `NG0908` fix in §25 re-confirmed** — have the user
+   pull this fix, regenerate a v19 or v20 zoneless project fresh, and run a real
+   `npm test` to confirm the error is actually gone, not just that lint/build pass.
 2. **Resolve the deferred Karma-vs-Vitest question** (§23) — `angular.md` currently
    states "Test runner is Vitest" as a locked constant, which is simply false for any
    project generated with `--angular-version=19` or `20`. This needs either (a) a
@@ -1267,9 +1317,10 @@ generated output is not proven to work on another's without testing it.
    principle, or (c) declaring v19/v20 support explicitly test-runner-limited
    (Karma only, no Vitest) and documenting that clearly rather than leaving the
    contradiction unaddressed.
-3. **Verify live test execution (not just build) for v19/v20 on a real machine** — this
-   sandbox has no Chrome binary, so Karma's actual `ng test` run was never confirmed,
-   only `ng lint` and `ng build`.
+3. **Continue working through the rest of `TESTING-PLAN.md`** — only the NG0908 case
+   has been reported back so far; the other 9 generation tests, the 3 negative tests,
+   and the skill's conversational flow (with the new Step 2 version question, session
+   19) are all still pending real-machine confirmation.
 4. **Verify against true latest Angular (22.x)** on a real machine — still the single
    biggest untested gap. Every schematic used across sessions
    (`@angular-eslint/schematics`, `@jsverse/transloco`, `@angular/pwa`, `ng generate
