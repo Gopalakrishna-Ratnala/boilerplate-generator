@@ -35,6 +35,12 @@ structural patterns below.
   "button-like" div needs all the keyboard/focus/ARIA behavor a real `<button>` gets for
   free. Prefer an attribute selector on a native element (e.g. a custom directive on
   `<button appMyButton>`) over building a div-based lookalike.
+- **For genuinely custom interactive widgets with no native element equivalent**
+  (a combobox, a tree view, a tabs component), check whether Angular Aria
+  (`@angular/aria`) already provides an accessible primitive before hand-rolling ARIA
+  roles/keyboard-navigation logic yourself — it exists specifically to avoid every
+  project reinventing this from scratch, and gets it right in ways that are easy to get
+  subtly wrong by hand (focus trapping, roving tabindex, correct ARIA state updates).
 
 ## What the AI agent must NOT do
 

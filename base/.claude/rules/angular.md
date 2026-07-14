@@ -37,6 +37,13 @@
   local field, unless the component genuinely needs the value outside the template too.
 - Keep templates logic-light — non-trivial logic belongs in the component class
   (`computed()`, a plain method), not inline in the template expression.
+- **Name event handlers for what they do, not the event that triggers them** — per
+  Angular's own style guide, `commitNotes()` reads better than `onKeydown()`. Reserve a
+  generic name like `handleKeydown()` only for genuinely complex cases that delegate to
+  several more specific handlers based on event details.
+- **Use Angular's key-event modifiers** (`(keydown.control.enter)`,
+  `(keydown.shift.tab)`) instead of hand-checking `event.key`/`event.ctrlKey` in the
+  handler body — clearer in the template, less error-prone in the code.
 
 ## State
 
@@ -72,6 +79,23 @@
 - Write a test for any new component's key behavior and any new service's public
   methods. Do not skip tests to move faster — the hook running lint/tests will catch
   missing coverage on obvious cases, but don't rely on that as the only bar.
+- **Testing anything that uses `HttpClient`**: use `provideHttpClientTesting()` +
+  `HttpTestingController` — never `HttpClientTestingModule`, which is deprecated.
+  ```ts
+  TestBed.configureTestingModule({
+    providers: [MyService, provideHttpClient(), provideHttpClientTesting()],
+  });
+  const httpTesting = TestBed.inject(HttpTestingController);
+  // ...call the method under test, then:
+  const req = httpTesting.expectOne('/api/things');
+  req.flush(mockResponse);
+  ```
+  Always call `httpTesting.verify()` in `afterEach` to catch unexpected/unhandled
+  requests — a test that doesn't verify can pass even if the code under test made an
+  extra, unintended request.
+- Prefer testing through the real service (`provideHttpClient()` + the testing backend)
+  over hand-mocking the service itself — this exercises the actual interceptor chain
+  (e.g. the auth/error interceptors from this project's bundles) rather than bypassing it.
 
 ## Forms
 
@@ -80,3 +104,14 @@
 - If this project's `data-layer` or a specific feature calls for Signal Forms
   (`@angular/forms/signals`), that will be called out explicitly in the relevant bundle
   rule file — don't introduce it unprompted.
+- **Validators**: prefer Angular's built-in validators (`Validators.required`,
+  `Validators.email`, `Validators.pattern`, etc.) composed via `Validators.compose()`
+  over hand-writing regex/logic that duplicates one. Write a custom validator function
+  only for genuinely app-specific rules, and keep it a pure function (input value in,
+  `ValidationErrors | null` out) — no side effects, no injected dependencies unless the
+  validator genuinely needs one (in which case use a factory function returning the
+  validator, not a class).
+- **Custom form controls** (a component that should work inside a Reactive Form, e.g. a
+  custom date picker): implement `ControlValueAccessor` and register it via the
+  `NG_VALUE_ACCESSOR` provider token — don't build a component that merely looks like a
+  form control but doesn't integrate with `formControlName`/validation/`disabled` state.

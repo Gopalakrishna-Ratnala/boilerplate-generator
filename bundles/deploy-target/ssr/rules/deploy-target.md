@@ -29,6 +29,27 @@ data).
   the request/response during server rendering (e.g. reading a cookie, setting a
   status code) — these are the documented, supported way to do this, not a workaround.
 
+## SSRF protection (production deployment concern)
+
+Angular's Node SSR engine validates `Host`/`X-Forwarded-*` headers by default to prevent
+server-side request forgery (SSRF) via host-header injection — by default, all
+`X-Forwarded-*` headers are treated as untrusted and stripped. If this project is
+deployed behind a reverse proxy or load balancer that needs these headers trusted, that
+requires explicit configuration in `src/server.ts` (`allowedHosts`, `trustProxyHeaders`
+on `AngularNodeAppEngine`) — a deployment/infra decision, not something to configure
+speculatively.
+
+- **Never set `allowedHosts: ['*']`** to make a "host not recognized" error go away —
+  this defeats the protection entirely and is explicitly called out as a security risk
+  in Angular's own docs. If a real deployment needs multiple hostnames allowed, list
+  them explicitly (wildcards like `*.example.com` are fine — a bare `*` is not).
+- **Do not set `trustProxyHeaders: true` (trusting all `X-Forwarded-*` headers)**
+  without confirming this project is actually behind a proxy that sets and validates
+  them — an untrusted deployment trusting these headers is itself an SSRF risk.
+- Since `src/server.ts` is protected (see above), any change to `allowedHosts` /
+  `trustProxyHeaders` goes through a developer, not through this agent directly — flag
+  the need rather than editing the protected file.
+
 ## What the AI agent must NOT do
 
 - **Do not edit** `src/server.ts` or `src/app/app.config.server.ts` — protected by

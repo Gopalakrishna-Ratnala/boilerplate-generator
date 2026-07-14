@@ -4,14 +4,17 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-14 (session 12)
-**Status:** Category B built and tested — **2 new fixed axes added: `i18n` (single vs.
-multi-language) and `offline` (standard vs. PWA)**, extending the system from 5 to 7
-axes. `generate.js`, all bundles, and the skill updated consistently. **Two more real
-bugs found by combining all 7 axes in one real end-to-end test (build + lint + test,
-the most thorough validation any combination has received)** — both fixed. Pushed to
-GitHub: `https://github.com/Gopalakrishna-Ratnala/boilerplate-generator` (branch
-`main`).
+**Last updated:** 2026-07-14 (session 13)
+**Status:** Drilled into angular.dev's remaining sections (Security, Style Guide,
+Testing/HTTP, Forms, Accessibility deep-dive) at the user's request. **Found and fixed
+a critical gap**: `security.md` covered only company file-protection rules, with none
+of Angular's own actual security model (XSS/sanitization, CSRF, SSRF) — the part that
+actually prevents real vulnerabilities in generated code. Also added an SSR-specific
+SSRF section to `deploy-target/ssr`, an event-handler naming convention, expanded
+Testing (HttpClient testing pattern) and Forms (validators, ControlValueAccessor)
+sections, and an Angular Aria mention. All verified via a full `generate.js` run.
+Pushed to GitHub: `https://github.com/Gopalakrishna-Ratnala/boilerplate-generator`
+(branch `main`).
 
 ---
 
@@ -725,7 +728,73 @@ work — it caught something the lighter checks didn't.
 
 Full JSON validation re-run across the entire repo after all changes — clean.
 
-## 19. Where things stand — Category A and B both done, next steps still user-driven
+## 19. angular.dev deep-dive (session 13) — user requested a drill-down across the whole site
+
+User asked for a systematic review of angular.dev's remaining sections not yet covered,
+specifically to find gaps that affect "standard and reliable code" — not just process
+gaps like the earlier `.mcp.json`/ESLint findings, but actual code-correctness/security
+content. Findings, most severe first:
+
+**🔴 Critical — `security.md` had almost none of Angular's own security model.**
+The file (session 3) covered company file-protection rules (which paths the agent can't
+touch) but nothing about *how Angular itself prevents real vulnerabilities* in the code
+being written — a file titled "security" that never mentioned XSS, sanitization, or
+CSRF is a significant gap for a system whose whole point is "reliable, standard code."
+**Fixed**: restructured into two clearly-labeled parts (same "official guidance vs
+house rules" separation used elsewhere) — Part 1 unchanged company rules, **new Part 2**
+sourced from angular.dev/best-practices/security:
+- Angular's default auto-sanitization model, and that `DomSanitizer`'s
+  `bypassSecurityTrust*` methods are Angular's own documentation's "Security Risk"
+  flagged APIs — the agent is told to stop and flag human review before using any of
+  them, not use them to "fix" a rendering issue.
+- CSP/Trusted Types as defense-in-depth (brief, since it's an infra/backend concern this
+  repo doesn't control directly).
+- **`HttpClient`'s automatic CSRF/XSRF protection** (cookie→header token forwarding) —
+  the agent is told not to call `withNoXsrfProtection()` casually, and to use
+  `withXsrfConfiguration()` rather than hand-rolling token-forwarding logic if the
+  backend uses different cookie/header names.
+- XSSI protection (informational — already automatic).
+
+**🔴 Also critical, bundle-specific: SSRF protection for `deploy-target/ssr`.**
+Angular's Node SSR engine has real `allowedHosts`/`trustProxyHeaders` protections
+against host-header-injection SSRF attacks — not mentioned anywhere in the `ssr`
+bundle. **Fixed**: added a dedicated section to `deploy-target/ssr`'s own rule file
+(not just the generic `security.md`, since this is specific to how `server.ts`'s
+`AngularNodeAppEngine` is configured) — explicitly warns against `allowedHosts: ['*']`
+and casually setting `trustProxyHeaders: true`.
+
+**🟡 Moderate — smaller but real additions to `angular.md`:**
+- **Event handler naming convention** from Angular's own style guide: name handlers for
+  what they do (`commitNotes()`), not the triggering event (`onKeydown()`); use
+  Angular's key-event modifiers (`(keydown.control.enter)`) over hand-checking
+  `event.key`/`event.ctrlKey`.
+- **Testing section expanded** with the concrete, currently-correct `HttpClient` testing
+  pattern (`provideHttpClientTesting()` + `HttpTestingController`, verified current —
+  `HttpClientTestingModule` is deprecated) — the previous version just said "use Vitest"
+  with no pattern for the single most common thing a generated project's tests need to
+  do (test something that calls `HttpClient`).
+- **Forms section expanded**: validator composition guidance (prefer built-ins, keep
+  custom validators pure) and the `ControlValueAccessor`/`NG_VALUE_ACCESSOR` pattern for
+  custom form controls — previously just said "prefer Reactive Forms" with no actual
+  pattern.
+- **Angular Aria mention** added to `accessibility.md` — check for an existing
+  accessible primitive before hand-rolling ARIA/keyboard-navigation logic for a custom
+  widget with no native element equivalent (combobox, tree view, tabs).
+
+**Verified, not just written:** full JSON validation re-run (unaffected, only `.md`
+files changed), `generate.js` syntax re-checked, and a full end-to-end
+`deploy-target:ssr` + `data-layer:rest` generation run to confirm all 12 rule files
+(including the substantially-expanded `security.md`, now 141 lines vs. the original 66)
+copy completely and the new SSRF section is actually present in the generated output —
+not just present in the source bundle.
+
+**Explicitly deferred, not silently dropped:** deeper drill-downs into Signals internals
+(`linkedSignal`, `resource`), Routing (resolvers, guards beyond what's already covered),
+Directives, and DI (hierarchical providers, injection tokens) were not done this
+session — flagged as candidates for a future pass if real use surfaces a need, same
+"don't build ahead of demonstrated need" principle applied throughout this project.
+
+## 20. Where things stand — Category A, B, and the security deep-dive all done
 
 1. **Real-world use** — still the most valuable next step, unchanged in priority from
    before. The user should run `generate.js` directly and try the skill in a live
