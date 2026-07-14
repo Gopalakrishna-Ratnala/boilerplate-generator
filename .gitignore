@@ -1,2 +1,25 @@
+# Dependencies
 node_modules/
+
+# Logs
 *.log
+npm-debug.log*
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Editor artifacts
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Angular / build artifacts (in case `ng`/`generate.js` is ever run from inside this
+# repo itself, rather than into a separate --out-dir — this repo should never contain
+# a generated Angular project's own build output)
+.angular/
+dist/
+
+# Environment/secrets, just in case (this repo has none by design, but never risk it)
+.env
+.env.*
