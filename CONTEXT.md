@@ -4,21 +4,25 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-14 (session 20)
-**Status:** **First real-machine confirmation of a bug this project could only ever
-flag as a risk, not verify** — the user ran the actual `TESTING-PLAN.md` battery via
-their own Claude Code session on a real machine with real Chrome, and hit exactly the
-Karma/zoneless gap `CONTEXT.md` §23 predicted: `NG0908` ("this configuration requires
-Zone.js") on `npm test` for an Angular 19/20 zoneless project. Root cause: the
-CLI-generated root component spec file bootstraps its own `TestBed` module,
-independent of `app.config.ts`, and never inherited the zoneless provider added there.
-User chose to fix the generator, not patch the one-off project. Fixed
-`enableZonelessForLegacyVersion()` to also patch the spec file
-(`app.spec.ts`/`app.component.spec.ts`), verified via real regeneration + lint + build
-for both v19 and v20 — **actual `npm test` re-confirmation still pending on the user's
-machine**, since this sandbox still has no Chrome binary to run Karma itself. Pushed to
-GitHub: `https://github.com/Gopalakrishna-Ratnala/boilerplate-generator` (branch
-`main`).
+**Last updated:** 2026-07-14 (session 21)
+**Status:** User ran the full `TESTING-PLAN.md` battery (11 generation/negative tests +
+2 skill tests) via their own Claude Code session on their real machine. **The
+session-20 `NG0908` fix is now genuinely confirmed working** — real Chrome, real
+Karma, 3/3 tests passing, zero errors, for Angular 19 (Test 5). All 4 negative
+version/`requires` validation tests refused correctly with exact expected messages. A
+new, real environment constraint surfaced (not a generator bug): the test machine's
+Node (`v20.13.1`) is below Angular's minimum even for CLI 20/21 (`>=20.19`), blocking 5
+of 7 generation tests at `ng new` itself before `generate.js`'s own logic even ran —
+`generate.js`'s validation worked correctly every time regardless. **True Angular 22
+has now failed to be verified twice** (once in this sandbox, once on the user's real
+machine) — still the single biggest open gap in this entire project. v20's NG0908 fix
+specifically remains unconfirmed by real Karma (blocked by the same Node constraint).
+Skill tests 4a/4b confirmed the skill's logic is internally consistent but — reported
+honestly by the user's own sub-agent, not glossed over — used a simulated
+both-sides-of-the-conversation run rather than genuine turn-by-turn interaction, so
+live pacing behavior (does it actually pause after each question) remains unproven.
+Pushed to GitHub: `https://github.com/Gopalakrishna-Ratnala/boilerplate-generator`
+(branch `main`).
 
 ---
 
@@ -1275,7 +1279,66 @@ created between sessions 19 and 20) works as intended: a real-machine test batte
 by the user's own Claude Code session found a genuine bug this sandbox structurally
 could not have found itself, and it got fixed at the source within one turnaround.
 
-## 26. Where things stand — everything through session 20 done
+## 26. First full real-machine test run — `TESTING-PLAN.md` executed end-to-end (session 21)
+
+User ran the entire test plan for real, via their own Claude Code session, and reported
+back a precise, honest result table — correctly distinguishing generator logic failures
+from environment constraints throughout, not conflating the two.
+
+**The single most important confirmation in this project's history**: **Test 5 (Angular
+19) passed completely** — `ng lint` clean, `ng build` clean, `ng test` genuinely
+launched real Chrome + Karma and passed 3/3 with **zero `NG0908` errors**. The
+session-20 fix (`enableZonelessForLegacyVersion()` patching the CLI-generated spec
+file's `TestBed` providers) is now proven correct on real hardware, not just "should
+work by pattern." This is the first fix in this project's entire history to go from
+"verified via sandbox build/lint only" to "verified via a real, passing test run."
+
+**All 4 negative tests (8–11) passed exactly as designed** — refused with exit 1, no
+directory created, and the exact expected error message naming the real conflict, for
+both `requires` violations and both directions of version-gating (`oauth-sso` floor,
+`primeng`/`ngrx-signalstore` ceiling on two different bundles). The validation
+infrastructure built in session 18 is now confirmed correct end-to-end, not just in
+this sandbox.
+
+**A new, real environment constraint found — correctly identified as environmental,
+not a generator bug:** the test machine's Node is `v20.13.1`. Angular's own CLI
+minimum has apparently moved since earlier research — CLI 20 and 21 now require
+`>=20.19`, not just "whatever's compatible" — meaning `v20.13.1` is too old for
+**everything except v19**. This blocked Tests 1, 2, 3, 7 (all targeting true latest,
+v22) and Tests 4 and 6 (v21 and v20) at `ng new` itself, before `generate.js`'s own
+logic ever ran. Confirmed in every blocked case that `generate.js`'s own validation
+resolved and passed correctly regardless (e.g. Test 4's report explicitly notes
+"validation passed, but Angular CLI 21 requires Node ≥20.19/22.12") — the failures are
+squarely `ng new`/Node-version issues, not bugs in this system's own logic.
+
+**Still genuinely open, now doubly-confirmed rather than newly found:**
+
+1. **True Angular 22 has now failed to be verified on two separate machines** — this
+   sandbox (Node one patch version short of the true minimum) and the user's real
+   machine (Node considerably further short). This remains, unchanged, the single
+   biggest untested gap in this entire project — **recommend the user upgrade Node to
+   at least v22.22.3 (or v24.15+/v26+) specifically to unblock this**, since it's the
+   one thing neither testing environment so far has been able to reach.
+2. **v20's `NG0908` fix specifically remains unconfirmed by real Karma.** Test 5 (v19)
+   and Test 6 (v20) both exist in the plan specifically because the two versions'
+   fix code paths differ (different `eslint.config.js` quote-style handling, different
+   root-component filename) — confirming one does not prove the other. Test 6 never
+   got past `ng new` here, so this is still open, not resolved by Test 5's success.
+3. **The skill tests (4a/4b) proved logic consistency, not live runtime behavior** —
+   reported with appropriate honesty by the user's own sub-agent rather than
+   overclaimed: the test simulated both sides of the conversation in one pass instead
+   of a genuine turn-by-turn session. This confirms the skill's *written instructions*
+   are internally consistent (correct question order, correct flag omission for
+   "latest," correct conflict detection logic) but does **not** prove that a live
+   Claude Code session actually pauses and waits after each question rather than
+   batching them — that would need an actual human (or a genuinely separate,
+   non-simulated multi-turn session) working through the skill conversationally, not a
+   sub-agent narrating both sides.
+
+**Every test output directory was deleted immediately after recording results, per the
+updated plan** — confirmed by the user's own report, nothing left in `/tmp`.
+
+## 27. Where things stand — everything through session 21 done
 
 **Permanent addition to this project's testing discipline, effective immediately**:
 **every full validation pass must include a real `ng build`, not just `ng lint` and
@@ -1303,13 +1366,27 @@ v20's differently-formatted (but equally valid) schematic output — found only 
 v20 was actually generated and built this session. A fix that works on one version's
 generated output is not proven to work on another's without testing it.
 
-1. **Real-world use — actually in progress now, not just planned.** The user is
-   running `TESTING-PLAN.md` via their own Claude Code session on a real machine, and
-   it already found and got a real bug fixed (§25) in its first pass. **Highest
-   priority right now: get the `NG0908` fix in §25 re-confirmed** — have the user
-   pull this fix, regenerate a v19 or v20 zoneless project fresh, and run a real
-   `npm test` to confirm the error is actually gone, not just that lint/build pass.
-2. **Resolve the deferred Karma-vs-Vitest question** (§23) — `angular.md` currently
+1. **Upgrade Node on the test machine to at least v22.22.3 (or v24.15+/v26+).** This is
+   now the clear #1 blocker, confirmed twice over (this sandbox, then the user's real
+   machine): the test machine's Node (`v20.13.1`) is too old to run `ng new` for
+   anything except v19 — Angular CLI 20/21 need `>=20.19`, and true latest (22) needs
+   `>=22.22.3`. Without this upgrade, 5 of the 7 generation tests and both skill tests
+   cannot progress past `ng new` at all, and true Angular 22 — the single biggest open
+   question in this project — cannot be reached on this machine no matter how many
+   more times the plan is re-run.
+2. **Re-run Tests 1, 2, 3, 4, 6, 7 and both skill tests (4a/4b) after the Node
+   upgrade** — these were all blocked at `ng new`, not tested and passing. Test 5 (v19)
+   is genuinely done; nothing else in the generation matrix has real results yet.
+3. **v20's `NG0908` fix specifically still needs real Karma confirmation** — Test 6 was
+   blocked by the same Node constraint. Don't assume Test 5's pass extends to v20; the
+   fix's code path genuinely differs between the two versions (session 18's
+   quote-style and filename findings).
+4. **Get a genuine (non-simulated) turn-by-turn run of the skill** — 4a/4b confirmed
+   the skill's logic is internally consistent, but a sub-agent narrating both sides of
+   the conversation in one pass doesn't prove live pacing behavior. A real human
+   working through `/new-angular-project` conversationally, one message at a time,
+   would close this gap.
+5. **Resolve the deferred Karma-vs-Vitest question** (§23) — `angular.md` currently
    states "Test runner is Vitest" as a locked constant, which is simply false for any
    project generated with `--angular-version=19` or `20`. This needs either (a) a
    version-tiered content split in `angular.md`'s Testing section, (b) accepting the
@@ -1317,25 +1394,21 @@ generated output is not proven to work on another's without testing it.
    principle, or (c) declaring v19/v20 support explicitly test-runner-limited
    (Karma only, no Vitest) and documenting that clearly rather than leaving the
    contradiction unaddressed.
-3. **Continue working through the rest of `TESTING-PLAN.md`** — only the NG0908 case
-   has been reported back so far; the other 9 generation tests, the 3 negative tests,
-   and the skill's conversational flow (with the new Step 2 version question, session
-   19) are all still pending real-machine confirmation.
-4. **Verify against true latest Angular (22.x)** on a real machine — still the single
-   biggest untested gap. Every schematic used across sessions
-   (`@angular-eslint/schematics`, `@jsverse/transloco`, `@angular/pwa`, `ng generate
-   environments`, `husky init`, `@angular/material`, `tailwindcss`) resolved a
-   compatible version automatically in this sandbox rather than the literal latest, for
-   the same Node-version reason noted since session 9. Given this session found both a
-   production-build-breaking bug and a peer-dependency-resolution bug that lint/test
-   alone couldn't catch, **this verification matters more than previously stated** —
-   there could be other version-specific issues only a real Angular 22 + real Node
-   build would surface.
-5. **Re-run the full audit pattern from §13** — now covering 8 axes across 22 total
+6. **Verify against true latest Angular (22.x)** — still the single biggest untested
+   gap, now failed twice across two different environments. Every schematic used
+   across sessions (`@angular-eslint/schematics`, `@jsverse/transloco`, `@angular/pwa`,
+   `ng generate environments`, `husky init`, `@angular/material`, `tailwindcss`)
+   resolved a compatible version automatically rather than the literal latest, purely
+   due to Node-version constraints in every environment tried so far. Given this
+   project has found both a production-build-breaking bug and a peer-dependency bug
+   that lint/test alone couldn't catch, **this verification matters more than ever** —
+   there could be other version-specific issues only a real Angular 22 + sufficient
+   Node build would surface.
+7. **Re-run the full audit pattern from §13** — now covering 8 axes across 22 total
    bundle options, 12 hooks, and a substantially larger `angular.md`/`architecture.md`
    — this has caught something new literally every time it's been tried, no reason to
    expect that stops now.
-6. Multi-select per axis, the open-axis "unsure" default behavior, other previously
+8. Multi-select per axis, the open-axis "unsure" default behavior, other previously
    flagged "not fully resolved" items, and any further Category B candidates remain
    open — revisit only if real use surfaces a need.
 
