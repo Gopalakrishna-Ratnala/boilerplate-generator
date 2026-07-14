@@ -38,12 +38,15 @@ structural patterns below.
   (`.claude/hooks/check-interactive-div-span.sh`) — a `<div>`/`<span>` with `(click)`,
   `tabindex`, or `(keydown)`/`(keyup)` bound directly on it will be blocked, not just
   flagged in review.
-- **For genuinely custom interactive widgets with no native element equivalent**
-  (a combobox, a tree view, a tabs component), check whether Angular Aria
-  (`@angular/aria`) already provides an accessible primitive before hand-rolling ARIA
-  roles/keyboard-navigation logic yourself — it exists specifically to avoid every
-  project reinventing this from scratch, and gets it right in ways that are easy to get
-  subtly wrong by hand (focus trapping, roving tabindex, correct ARIA state updates).
+- **For genuinely custom interactive widgets with no native element equivalent**, check
+  whether Angular Aria (`@angular/aria`) already provides an accessible primitive before
+  hand-rolling ARIA roles/keyboard-navigation logic yourself. Angular Aria's official
+  component set (verified against the Angular team's own agent-skills reference)
+  covers: **Accordion, Listbox, Combobox, Menu, Tabs, Toolbar, Tree, Grid** — if the
+  widget being built matches one of these, use Angular Aria's primitive rather than
+  hand-rolling; it exists specifically to avoid every project reinventing this from
+  scratch, and gets it right in ways that are easy to get subtly wrong by hand (focus
+  trapping, roving tabindex, correct ARIA state updates).
 
 ## What the AI agent must NOT do
 

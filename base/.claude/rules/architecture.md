@@ -87,3 +87,14 @@ top-level folder.
 - Keep the guard generic and reusable (e.g. a shared `hasUnsavedChanges` guard that
   calls a `canDeactivate(): boolean` method the component implements) rather than
   writing a bespoke one-off guard per feature.
+
+## Data resolvers
+
+- If a route needs data to be available *before* the component renders (avoiding a
+  render-then-load flash of empty/loading state for data that's genuinely required to
+  show the page at all), use a `ResolveFn` on the route rather than fetching in the
+  component's constructor/`ngOnInit` and showing a loading spinner.
+- Don't reach for a resolver for data that's fine to load progressively (e.g. a list
+  that can show a skeleton/spinner while loading) — resolvers delay navigation until
+  they resolve, which is the right trade-off for "this page is meaningless without this
+  data," not a default for every route.

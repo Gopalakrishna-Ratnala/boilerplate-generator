@@ -436,9 +436,18 @@ function applyBase(projectDir, placeholderValues) {
     fs.copyFileSync(mcpConfigSrc, path.join(projectDir, '.mcp.json'));
   }
 
-  // architecture.md is the one other file with a placeholder token ({{SELECTOR_PREFIX}}).
-  const archPath = path.join(projectDir, '.claude', 'rules', 'architecture.md');
-  fs.writeFileSync(archPath, fillPlaceholders(fs.readFileSync(archPath, 'utf8'), placeholderValues));
+  // Apply placeholder substitution to EVERY file in .claude/rules/, not a hand-picked
+  // list. Previously only CLAUDE.md and architecture.md were processed here, which
+  // meant a new placeholder added to any other rule file (like {{TEST_RUNNER}} in
+  // angular.md) would silently never get filled in. fillPlaceholders() is a no-op for
+  // files with no matching tokens, so processing every file is safe.
+  const rulesDir = path.join(projectDir, '.claude', 'rules');
+  for (const ruleFile of fs.readdirSync(rulesDir)) {
+    const ruleFilePath = path.join(rulesDir, ruleFile);
+    if (fs.statSync(ruleFilePath).isFile()) {
+      fs.writeFileSync(ruleFilePath, fillPlaceholders(fs.readFileSync(ruleFilePath, 'utf8'), placeholderValues));
+    }
+  }
 
   // Hooks must be executable — permissions aren't guaranteed to survive a plain copy.
   const hooksDir = path.join(projectDir, '.claude', 'hooks');
@@ -877,7 +886,7 @@ function main() {
   const selection = {};
   for (const axis of AXES) selection[axis] = args[axis];
 
-  const targetAngularMajor = resolveAngularMajor(args['angular-version']);
+  let targetAngularMajor = resolveAngularMajor(args['angular-version']);
   const manifests = validateSelection(selection, targetAngularMajor);
 
   const projectName = args['project-name'];
@@ -893,6 +902,45 @@ function main() {
 
   const bundleSummaryLines = AXES.map((axis) => `- ${manifests[axis].claudeMdSummaryLine}`).join('\n');
 
+  // Vitest only became the default test runner at Angular v21 (verified across
+  // sessions 18/21 via real generation) — v19/v20 use Karma. CLAUDE.md/angular.md
+  // previously stated "Test runner is Vitest" unconditionally, which was simply false
+  // for any legacy-version project. Fixed by making this a real placeholder instead of
+  // a hardcoded claim.
+  let testRunner = targetAngularMajor >= 21 ? 'Vitest' : 'Karma/Jasmine';
+
+  // Signal Forms (@angular/forms/signals) was introduced experimental at v21 and
+  // becomes stable at v22 (verified: angular.dev's own API docs mark schema() as
+  // "experimental since v21.0"; multiple v22-era sources confirm stabilization).
+  // Angular's own official angular-developer skill states plainly: "Signal Forms are
+  // the recommended approach for handling forms in modern Angular applications (v21+)"
+  // and "CRITICAL: You MUST use Angular's new Signal Forms API for all form-related
+  // functionality" for those versions — this is the official default, not an opt-in
+  // exception, which our own guidance previously got backwards. v19/v20 predate Signal
+  // Forms entirely (introduced at v21), so Reactive Forms remains correct there.
+  //
+  // A function, not a pre-built string: the wording embeds the major version number
+  // directly, so if the target version gets corrected later (real vs. assumed — see
+  // below), re-selecting between two already-built strings would leave stale wording.
+  // Recomputing fresh each call avoids that.
+  function computeFormsGuidance(major) {
+    if (major >= 21) {
+      return `- **This project targets Angular ${major >= 22 ? '22 (Signal Forms is stable here)' : "21 (Signal Forms is still marked experimental at this version, but is Angular's own official recommendation for new v21+ projects)"}. Signal Forms (\`@angular/forms/signals\`) is the primary approach for forms in this project — not Reactive Forms.** This is Angular's own stated default for v21+, not an exception to opt into.
+- Build the form from a signal model: \`form(mySignal, (path) => { ... schema rules ... })\` returns a \`FieldTree\`. Bind fields in the template with the \`[formField]\` directive (import \`FormField\` from \`@angular/forms/signals\`) — do not manually bind \`value\`/\`(input)\` on a field that has \`[formField]\` applied.
+- **Built-in validators** (import from \`@angular/forms/signals\`): \`required\`, \`minLength\`, \`maxLength\`, \`min\`, \`max\`, \`pattern\`, \`email\`. Apply them inside the schema callback against a field's path, not as template attributes.
+- Use \`disabled\`, \`hidden\`, \`readonly\` (all schema-level, conditional via a \`when\` callback) for field state — not manual \`[disabled]\` template bindings on a Signal Forms field.
+- Use \`submit(formSignal, async (form) => { ... })\` (imported from \`@angular/forms/signals\`) to handle submission — it only invokes the callback when the form is valid, and manages the \`submitting\` state automatically. Don't hand-roll a submit guard checking validity yourself.
+- A \`FieldTree\` node (e.g. \`myForm.email\`) is the *structure* — call it as a function (\`myForm.email()\`) to read its *state* signals (\`value\`, \`valid\`, \`touched\`, \`dirty\`, \`errors\`). Don't confuse the two.
+- Do not mix imports from \`@angular/forms\` (Reactive/Template-driven) into a Signal Forms component unless deliberately using \`compatForm\` for an incremental migration — Signal Forms is a from-scratch reimplementation, not an extension of Reactive Forms.
+- **Custom form controls**: implement Signal Forms' own custom-control pattern (not \`ControlValueAccessor\`, which is the Reactive Forms mechanism) — if unsure of the exact current pattern, use the Angular CLI MCP server's \`search_documentation\` tool rather than guessing, since this is a newer, still-evolving API surface.`;
+    }
+    return `- Prefer Reactive Forms over Template-driven forms for anything beyond a single trivial input. (Signal Forms doesn't exist yet on Angular ${major} — it was introduced at v21 — so this isn't a choice being made here, just a fact about what's available.)
+- **Validators**: prefer Angular's built-in validators (\`Validators.required\`, \`Validators.email\`, \`Validators.pattern\`, etc.) composed via \`Validators.compose()\` over hand-writing regex/logic that duplicates one. Write a custom validator function only for genuinely app-specific rules, and keep it a pure function (input value in, \`ValidationErrors | null\` out) — no side effects, no injected dependencies unless the validator genuinely needs one (in which case use a factory function returning the validator, not a class).
+- **Custom form controls** (a component that should work inside a Reactive Form, e.g. a custom date picker): implement \`ControlValueAccessor\` and register it via the \`NG_VALUE_ACCESSOR\` provider token — don't build a component that merely looks like a form control but doesn't integrate with \`formControlName\`/validation/\`disabled\` state.`;
+  }
+
+  let formsGuidance = computeFormsGuidance(targetAngularMajor);
+
   const placeholderValues = {
     PROJECT_NAME: projectName,
     ONE_LINE_PROJECT_DESCRIPTION: args.description || 'Generated Angular application.',
@@ -901,9 +949,48 @@ function main() {
     PACKAGE_MANAGER: args['package-manager'] || 'npm',
     SELECTOR_PREFIX: selectorPrefix,
     SELECTED_BUNDLES_LIST: bundleSummaryLines,
+    TEST_RUNNER: testRunner,
+    FORMS_GUIDANCE: formsGuidance,
   };
 
   const projectDir = scaffoldAngularWorkspace(projectName, outDir, args['angular-version']);
+
+  // Re-derive the target version from what `ng new` ACTUALLY scaffolded, not the
+  // pre-scaffold guess. Found via a real bug: when --angular-version is omitted,
+  // ASSUMED_LATEST_ANGULAR_MAJOR is a constant guess about "current latest," but the
+  // real `npx @angular/cli` resolution can differ from that guess (e.g. a local Node
+  // version too old for the true latest CLI causes it to silently resolve an older
+  // compatible version instead) — this had already been true throughout this project's
+  // own testing, but only became a real failure once the ESLint schematic started
+  // being pinned to targetAngularMajor explicitly (this session): pinning to a WRONG
+  // guessed version broke `ng add`, whereas the previous unpinned call had silently
+  // "worked" by accident. Reading the real installed version fixes this for every
+  // downstream decision (ESLint pinning, zoneless enablement, Forms guidance, test
+  // runner), not just the immediate symptom.
+  try {
+    const scaffoldedPkg = JSON.parse(fs.readFileSync(path.join(projectDir, 'package.json'), 'utf8'));
+    const actualCoreVersion = scaffoldedPkg.dependencies?.['@angular/core'];
+    const actualMajorMatch = actualCoreVersion && actualCoreVersion.match(/(\d+)/);
+    if (actualMajorMatch) {
+      const actualMajor = parseInt(actualMajorMatch[1], 10);
+      if (actualMajor !== targetAngularMajor) {
+        warn(
+          `Requested/assumed Angular ${targetAngularMajor}, but \`ng new\` actually scaffolded ` +
+            `Angular ${actualMajor} (@angular/core: ${actualCoreVersion}) — likely a local Node/CLI ` +
+            `resolution difference, not a generate.js bug. Using the ACTUAL scaffolded version ` +
+            `(${actualMajor}) for every decision from here on (ESLint pinning, zoneless, Forms ` +
+            `guidance, test runner), not the original guess.`
+        );
+        targetAngularMajor = actualMajor;
+        testRunner = targetAngularMajor >= 21 ? 'Vitest' : 'Karma/Jasmine';
+        formsGuidance = computeFormsGuidance(targetAngularMajor);
+        placeholderValues.TEST_RUNNER = testRunner;
+        placeholderValues.FORMS_GUIDANCE = formsGuidance;
+      }
+    }
+  } catch (e) {
+    warn(`Could not verify the actually-scaffolded Angular version (${e.message}) — proceeding with the original target.`);
+  }
 
   runBasePostGenerateCommands(projectDir, dryRun, targetAngularMajor);
   if (!dryRun) {

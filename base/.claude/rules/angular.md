@@ -54,6 +54,22 @@
 
 - Use `signal()` for local/component state.
 - Use `computed()` for derived state. Keep the computation pure — no side effects.
+- **`linkedSignal()`** (stable since Angular 20) — use this instead of `computed()` when
+  you need a *writable* signal that resets/derives from another signal, but can also be
+  manually overridden. Classic case: a "selected option" that defaults to the first
+  item in a list, resets when the list changes, but can be changed by the user in the
+  meantime. `computed()` can't do this (it's read-only) — don't reach for a manual
+  `signal()` + `effect()` combination to fake this pattern when `linkedSignal()` already
+  exists for exactly this case.
+- **`resource()` / `httpResource()` / `rxResource()`** — Angular's signal-based
+  primitives for async data (most commonly server data-fetching). **These remain
+  explicitly experimental as of this writing** (verified against angular.dev) — don't
+  treat them as equivalent in stability to `signal()`/`computed()`/`linkedSignal()`. This
+  project's `data-layer` bundle already has an established, stable pattern (see
+  `.claude/rules/data-layer.md`) — don't introduce `resource()` as a replacement for
+  that pattern without a developer decision to do so; it's mentioned here so you
+  recognize it and don't reinvent it in an ad hoc way if a specific case seems to call
+  for it, not as a default to reach for.
 - **Never call `.mutate()`.** Use `.set()` or `.update()` so change detection tracks the
   change correctly.
 - This project's app-wide state approach (plain signals in services vs. NgRx
@@ -109,9 +125,12 @@
 
 ## Testing
 
-- Test runner is Vitest. Test files are `*.spec.ts`, colocated with the file they test.
-- Use `TestBed` for component/service tests as normal — Vitest's API is Jest-like
-  (`describe`/`it`/`expect`).
+- Test runner is **{{TEST_RUNNER}}** for this project (Vitest is Angular's default from
+  v21 onward; v19/v20 default to Karma/Jasmine instead — this line reflects whichever
+  applies to this specific project's Angular version, not a universal assumption).
+  Test files are `*.spec.ts`, colocated with the file they test.
+- Use `TestBed` for component/service tests as normal — the `describe`/`it`/`expect`
+  API is the same shape across both runners.
 - Write a test for any new component's key behavior and any new service's public
   methods. Do not skip tests to move faster — the hook running lint/tests will catch
   missing coverage on obvious cases, but don't rely on that as the only bar.
@@ -132,22 +151,20 @@
 - Prefer testing through the real service (`provideHttpClient()` + the testing backend)
   over hand-mocking the service itself — this exercises the actual interceptor chain
   (e.g. the auth/error interceptors from this project's bundles) rather than bypassing it.
+- **If this project's `styling` bundle is `material` (or any CDK-based component)**:
+  prefer testing component interactions through its official **component harness**
+  (`@angular/cdk/testing`, e.g. `TestbedHarnessEnvironment.loader(fixture)` then
+  `loader.getHarness(SomeMaterialComponentHarness)`) over querying the component's
+  internal DOM structure directly (`fixture.debugElement.query(By.css('.mat-mdc-...'))`)
+  — harnesses are the stable, official contract; internal CSS classes are not, and
+  querying them breaks on any Material version upgrade.
+- **This project's unit tests do not cover end-to-end (whole-app, real-browser) user
+  flows** — that's a separate testing layer this generator doesn't currently scaffold.
+  Angular's own CLI supports adding one via `ng e2e` (offers Cypress, Playwright,
+  WebdriverIO, Nightwatch, or Puppeteer — there's no single official default, it's a
+  real project decision). If a task specifically calls for e2e coverage, flag it for a
+  developer to set up deliberately rather than improvising one inline.
 
 ## Forms
 
-- Prefer Reactive Forms over Template-driven forms for anything beyond a single trivial
-  input.
-- If this project's `data-layer` or a specific feature calls for Signal Forms
-  (`@angular/forms/signals`), that will be called out explicitly in the relevant bundle
-  rule file — don't introduce it unprompted.
-- **Validators**: prefer Angular's built-in validators (`Validators.required`,
-  `Validators.email`, `Validators.pattern`, etc.) composed via `Validators.compose()`
-  over hand-writing regex/logic that duplicates one. Write a custom validator function
-  only for genuinely app-specific rules, and keep it a pure function (input value in,
-  `ValidationErrors | null` out) — no side effects, no injected dependencies unless the
-  validator genuinely needs one (in which case use a factory function returning the
-  validator, not a class).
-- **Custom form controls** (a component that should work inside a Reactive Form, e.g. a
-  custom date picker): implement `ControlValueAccessor` and register it via the
-  `NG_VALUE_ACCESSOR` provider token — don't build a component that merely looks like a
-  form control but doesn't integrate with `formControlName`/validation/`disabled` state.
+{{FORMS_GUIDANCE}}

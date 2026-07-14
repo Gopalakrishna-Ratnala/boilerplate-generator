@@ -23,7 +23,7 @@ without a developer's sign-off.
 - State baseline: Signals (`signal()`, `computed()`, `input()`, `output()`)
 - Lint: ESLint (`angular-eslint`, flat config)
 - Format: Prettier
-- Tests: Vitest
+- Tests: {{TEST_RUNNER}}
 - Package manager: {{PACKAGE_MANAGER}}
 
 Selected bundles for this project (see `.claude/rules/` for each):
