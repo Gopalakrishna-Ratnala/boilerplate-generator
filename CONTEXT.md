@@ -4,11 +4,13 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-13 (session 9)
-**Status:** All 5 fixed-axis bundles complete and audited. **`scripts/generate.js` built
-and genuinely end-to-end tested — 2 real bugs found and fixed during testing, not
-theoretical.** Remaining: the `new-angular-project` Claude Code skill (conversational
-wrapper around `generate.js`), then Case 2 question phrasing. Pushed to GitHub:
+**Last updated:** 2026-07-14 (session 10)
+**Status:** All 5 fixed-axis bundles complete and audited. `scripts/generate.js` built
+and end-to-end tested. **The `new-angular-project` Claude Code skill is now built**,
+including Case 2 (non-technical client) question phrasing, drafted for the first time
+this session. Remaining: nothing planned — the system is functionally complete; next
+work would be user-driven real-world testing and any bundle/skill refinements that
+surface from it. Pushed to GitHub:
 `https://github.com/Gopalakrishna-Ratnala/boilerplate-generator` (branch `main`).
 
 ---
@@ -91,7 +93,7 @@ boilerplate-generator/
 ├── .claude/
 │   └── skills/
 │       └── new-angular-project/
-│           └── SKILL.md           # conversational Q&A — NOT YET BUILT
+│           └── SKILL.md           # ✅ BUILT (session 10) — includes Case 1 + Case 2 phrasing
 ├── base/                          # ✅ BUILT — always-included in every generated repo
 │   ├── CLAUDE.md
 │   └── .claude/
@@ -157,8 +159,14 @@ in the test sandbox).
 
 ---
 
-## 5. Case 1 (technical client) question list — drafted
+## 5. Question lists — Case 1 (technical) and Case 2 (non-technical), both now built into the skill
 
+**Both cases are now written out in full inside
+`.claude/skills/new-angular-project/SKILL.md`** (session 10) — that file is the
+canonical, current source since it's what actually runs; the summary below is historical
+context only, kept for quick reference, not the thing to edit going forward.
+
+Case 1 (drafted session 2):
 1. **Authentication:** "What authentication mechanism does this application need?" →
    No auth / Basic email-password / OAuth-SSO / Enterprise SAML
 2. **Data layer:** "How will the frontend get its data — REST, GraphQL, or real-time?" →
@@ -170,18 +178,28 @@ in the test sandbox).
 5. **Deployment target:** "Does this need SEO/fast first-paint (SSR), or is it
    internal/behind-login (SPA)?" → SPA / SSR
 
-Plus, always: "Please provide the empty GitHub repository URL to push to."
+Plus, always: project name and the empty GitHub repository URL to push to.
 
-**Open items flagged during drafting, not yet resolved:**
-- Q3/Q4 are the most likely to get "not sure" from even a technical client — need to
-  decide: does the Designer default to the simpler option and upgrade later, or does
-  that punt to dev review before proceeding?
-- Current phrasing is single-select per axis. Real projects might need multi-select
-  (e.g., "no auth for public pages + OAuth for admin area") — deliberately deferred
-  because it complicates bundle-merging logic in the generator. Revisit once `generate.js`
-  exists and we know how hard multi-select merging actually is.
+Case 2 (drafted session 10, plain-language analogies instead of technical terms — see
+`SKILL.md` for exact wording): asks the same 5 decisions but framed as "how do people
+get into your app," "where does your information come from," "does information follow
+someone between screens," "do all users see the same thing," "does this need to show up
+in Google search." Each maps to the identical bundle flags as Case 1 — the phrasing
+differs, the underlying options don't.
 
-**Case 2 (non-technical client) phrasing — not started.**
+**Open items still not fully resolved (carried forward, not blocking):**
+- Q3/Q4 are the most likely to get "not sure" from even a technical client. The skill
+  now has a **partial answer for one such case**: if `rbac` is selected with `auth:
+  none`, the skill is instructed to flag the contradiction and ask the person to
+  resolve it, rather than silently picking one (this is also independently enforced by
+  `generate.js`'s `requires` validation — two layers, same as the file-protection
+  pattern elsewhere in this project). The general "what if the client is unsure"
+  question for axes without a hard constraint (e.g. Q3, state complexity) is still not
+  resolved — the skill currently just asks and takes whatever answer comes back.
+- Current phrasing is still single-select per axis. Multi-select (e.g. "no auth for
+  public pages + OAuth for admin area") remains deliberately deferred — `generate.js`'s
+  bundle-merging logic was built and tested assuming exactly one option per axis; adding
+  multi-select would need real design work, not just a skill wording change.
 
 ---
 
@@ -515,25 +533,66 @@ unaffected by whatever `ng new` did or didn't manage to commit internally; only 
 commit exists on the `main` branch in every test that was run (confirmed via `git log`
 each time).
 
-## 15. Immediate next step (where to resume) — `generate.js` done, the Claude Code skill is next
+## 15. `new-angular-project` skill — ✅ built (session 10), including Case 2 phrasing
 
-Build `.claude/skills/new-angular-project/SKILL.md` — the conversational wrapper:
-1. Asks the 5 fixed-axis questions (Case 1 phrasing exists in §5; Case 2 still not
-   drafted — see below).
-2. Asks the open/cosmetic axis questions (theme, component library shortlist, etc. —
-   never formally drafted this session; still needs a menu, not just "ask freely").
-3. Asks for `--project-name` and `--repo` (the target empty GitHub repo URL).
-4. Calls `node scripts/generate.js` with the corresponding flags — **the skill itself
-   must not hand-assemble any files**; its only job is conversation + dispatch, per the
-   deterministic-core decision in §2.
-5. Surfaces `generate.js`'s own output back to the user as-is (including any
-   `knownIssues` warnings or validation failures) rather than summarizing/hiding them.
+`.claude/skills/new-angular-project/SKILL.md` is written. What it does and what was
+checked:
 
-After the skill: draft Case 2 (non-technical client) question phrasing — still not
-started, tracked since §5 was written.
+- **States its own scope restriction up front**: it must never hand-assemble project
+  files itself — only ask questions and call `generate.js`. This is written directly
+  into the skill's instructions, not just implied.
+- **Includes both Case 1 and Case 2 phrasing for all 5 fixed-axis questions.** Case 2
+  (non-technical) was drafted for the first time this session — plain-language
+  analogies ("how do people get into your app," "does information follow someone
+  between screens") instead of technical terms, mapping to the exact same bundle flags
+  as Case 1.
+- **Cross-checked every flag name and option value against the real `generate.js` and
+  real bundle folder names** (not just written from memory) — confirmed exact matches
+  for all 5 axes' option values (`none/basic-auth/oauth-sso/saml`,
+  `mock/rest/graphql/realtime`, `signals-only/ngrx-signalstore`, `single-role/rbac`,
+  `spa/ssr`) and all flag names (`--project-name`, `--repo`, `--description`,
+  `GITHUB_TOKEN`). A skill with drifted flag names would fail confusingly at runtime
+  with no clear signal why — checked this before considering it done, the same
+  discipline applied to bundle protection paths in §13.
+- **Validated the YAML frontmatter actually parses** (`name`/`description` fields
+  present and well-formed) — a skill can't be discovered by Claude Code at all if this
+  is malformed, so this was checked directly rather than assumed from visual
+  inspection.
+- **Handles the `rbac` + `auth: none` contradiction at the conversation layer too** —
+  told explicitly to catch this and ask the person to resolve it, as a second,
+  earlier-in-the-flow layer on top of `generate.js`'s own `requires` validation (same
+  "worth two independent checks" pattern as the file-protection hooks in `base/`).
+- **Open/cosmetic questions (theme, component library, etc.) are asked but deliberately
+  don't map to bundle flags** — they get folded into `--description` as freeform notes,
+  not turned into new pseudo-bundles. Inventing new bundle types for purely cosmetic
+  choices would have been scope creep beyond what §2's fixed/open axis split actually
+  calls for.
 
-**Before considering the whole system done:** run the full audit pattern from §13 one
-more time now that `generate.js` and the skill both exist — cross-bundle consistency
-checks catch different things than component-level testing does, and this has been true
-every time it was tried this session.
+**What could not be tested here, honestly:** a skill is a prompt, not executable code —
+there's no way to "run" it standalone the way `generate.js` was end-to-end tested. Real
+validation of this skill only happens the first time someone actually uses it inside a
+live Claude Code session and walks through the conversation for real.
+
+## 16. Where things stand — no more planned work, next steps are user-driven
+
+Every piece described in the original plan (§2) now exists: `base/`, all 5 bundles,
+`BUNDLE-CONTRACT.md`, `generate.js`, and the skill. There is no more "next thing to
+build" queued up — remaining work is:
+
+1. **Real-world use.** The user should actually run `generate.js` directly (already
+   suggested, not yet confirmed done) and then try the skill inside a live Claude Code
+   session. Both are more meaningfully tested by a real person on a real machine with
+   the correct Node version than by anything further done in this sandbox.
+2. **Verify against the true latest Angular (22.x)** — every test this session ran
+   against whatever `npx` auto-resolved in this sandbox (Angular 21.2.19), since the
+   sandbox's Node version couldn't satisfy the real Angular 22 CLI requirement. This is
+   the single biggest untested gap and should be the first thing checked on a real
+   machine.
+3. **Re-run the full audit pattern from §13** after real-world use surfaces anything —
+   cross-bundle consistency checks have caught something new almost every time they
+   were run this session; there's no reason to assume this stops being true just
+   because the initial build is complete.
+4. Multi-select per axis, the open-axis "unsure" default behavior, and any other item
+   flagged as "not fully resolved" throughout this document remain open — revisit only
+   if real use actually surfaces a need, not preemptively.
 
