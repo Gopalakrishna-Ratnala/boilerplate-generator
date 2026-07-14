@@ -34,7 +34,43 @@ This decides which question phrasing you use below — Case 1 (technical) or Cas
 (non-technical). Don't guess from context; ask directly if it isn't already obvious from
 the conversation.
 
-## Step 2 — Ask the 8 required questions, one at a time
+## Step 2 — Target Angular version → `--angular-version`
+
+Ask **the skill's operator directly** (this is an infrastructure decision, not a
+client-facing requirement — don't route it through Case 1/Case 2 phrasing):
+
+**"Does this project need to target a specific Angular version — usually because of an
+existing client environment/hosting constraint — or should it use the company's
+current default (latest stable Angular)?"**
+- Latest stable (the default — pick this unless there's a specific reason not to) →
+  omit `--angular-version` entirely (don't pass the flag at all).
+- A specific version (19, 20, 21, or 22) → `--angular-version=<number>`
+
+**Ask this before the 8 axis questions below, not after** — the chosen version can
+make specific answers to those questions invalid, and it's better to know that before
+asking them than to have to walk back an answer afterward. If a specific version is
+chosen, keep these real, verified constraints in mind while asking the axis questions
+(don't just find out later when `generate.js` refuses):
+- **Angular 19 or 20**: `auth: oauth-sso` (needs ≥22) and `state: ngrx-signalstore` /
+  `styling: primeng` (both need exactly 21) are **not available** — if the person's
+  answers to those questions would pick one of these, tell them it's incompatible with
+  the chosen version and ask them to pick differently (or reconsider the version).
+- **Angular 21**: `auth: oauth-sso` still not available (needs ≥22); `ngrx-signalstore`
+  and `primeng` **are** available here specifically (this is their only supported
+  version).
+- **Angular 22 (latest, the default)**: `ngrx-signalstore` and `primeng` are **not**
+  available (their peer dependencies cap at 21); `oauth-sso` is available.
+- Also worth knowing, not blocking: Angular 19/20 default to Karma for testing and
+  zone.js-based change detection (this project's guardrails still apply, but
+  `angular.md`'s "Test runner is Vitest" and zoneless-related content describes 21/22's
+  defaults specifically — see `CONTEXT.md` §23 for the full account of what differs).
+
+If the operator picks a version and then separately answers an axis question in a way
+that conflicts with the table above, stop and point out the conflict directly — same
+as the existing `rbac`+`auth:none` contradiction check below — rather than letting
+`generate.js` be the first thing to catch it.
+
+## Step 3 — Ask the 8 required questions, one at a time
 
 Ask these **one at a time**, not all at once — wait for each answer before asking the
 next. Use Case 1 phrasing if the person said technical, Case 2 if non-technical.
@@ -202,7 +238,7 @@ verbatim.*
 
 ---
 
-## Step 3 — Cosmetic/open questions (no bundle impact)
+## Step 4 — Cosmetic/open questions (no bundle impact)
 
 These do **not** map to `generate.js` flags — they're for the human designer to keep in
 mind, not something this generator enforces. Ask briefly, then fold the answer into
@@ -215,7 +251,7 @@ Combine these into a single sentence for `--description="..."`. Component librar
 choice is **no longer** a cosmetic question — see Q8 above; it's a real fixed axis with
 actual guardrails now, not something to leave unenforced.
 
-## Step 4 — Project name and repo
+## Step 5 — Project name and repo
 
 Ask for:
 1. **A project name** — lowercase, letters/numbers/hyphens only (Angular CLI naming
@@ -224,16 +260,17 @@ Ask for:
 2. **The empty GitHub repository URL** to push to (must already exist and be empty —
    this skill/script does not create the repo itself).
 
-## Step 5 — Run generate.js
+## Step 6 — Run generate.js
 
 Confirm the full set of answers back to the user in one short summary before running
-anything ("Auth: X, Data layer: Y, State: Z, Roles: W, Deploy target: V, i18n: U,
-Offline: T, Styling: S, pushing to
+anything ("Angular version: <latest, or the specific number>, Auth: X, Data layer: Y,
+State: Z, Roles: W, Deploy target: V, i18n: U, Offline: T, Styling: S, pushing to
 <repo>— is that right?"). Then, once confirmed, run:
 
 ```bash
 GITHUB_TOKEN=<token, if pushing> node scripts/generate.js \
   --project-name=<name> \
+  --angular-version=<number, OMIT entirely if latest was chosen> \
   --auth=<value> \
   --data-layer=<value> \
   --state=<value> \
@@ -252,7 +289,7 @@ guidance as setting up push access for this generator project itself. If they'd 
 generate locally first without pushing, omit `--repo` entirely and mention they can push
 manually later.
 
-## Step 6 — Report the result, verbatim
+## Step 7 — Report the result, verbatim
 
 Show the script's actual output — including `✓` progress lines, any `⚠️  Known issue`
 warnings, and especially any `❌` failure — rather than paraphrasing. If it fails, don't

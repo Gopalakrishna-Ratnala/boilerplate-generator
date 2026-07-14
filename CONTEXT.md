@@ -4,26 +4,16 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-14 (session 18)
-**Status:** User asked whether the generator can target Angular versions 19–22, then
-asked to actually build version-gated bundling. **Built real, tested support for all 4
-versions** (19/20/21/22) — not just documentation of what would need to change.
-Extended the bundle contract with `minAngularMajor`/`maxAngularMajor` (now enforced on
-`oauth-sso`, `ngrx-signalstore`, `primeng`, whose real peer-dependency floors/ceilings
-were already known). Built version-correct zoneless enablement for v19/v20 (different
-provider function names, verified). **Found and fixed 3 more real, version-specific
-bugs by actually generating and building each version, not by researching alone**: a
-documented `ng add` version-resolution bug requiring explicit ESLint-schematic version
-pinning; a quote-style difference in `@angular-eslint`'s generated `eslint.config.js`
-between v20 (double-quote/CommonJS) and v21/22 (single-quote/ESM) that broke prior
-anchor-string logic; a root-component file-naming difference between v19
-(`app.component.ts`) and v20+ (`app.ts`). **Also found a real, version-independent gap
-along the way**: prettier was never an actual pinned dependency anywhere in this
-system, only working by accident via `npx` auto-install, which silently fails inside
-`lint-staged`. All 4 versions verified end-to-end (generation + lint + build); v19/v20
-additionally confirmed to correctly produce zoneless output with the right
-version-specific API. Test-runner handling (Karma vs. Vitest across versions)
-explicitly deferred at the user's request — not yet resolved. Pushed to GitHub:
+**Last updated:** 2026-07-14 (session 19)
+**Status:** User caught a real gap: version-gated bundling was fully built and tested
+(session 18) but never actually reachable — the `new-angular-project` skill never asked
+about Angular version at all, always silently defaulting to latest. Decided explicitly
+(not assumed): **add it as a real, always-asked question**, asked early (Step 2, before
+the 8 axis questions) since the chosen version can invalidate specific axis answers
+(`oauth-sso` needs ≥22; `ngrx-signalstore`/`primeng` need exactly 21) — better to know
+that before asking those questions than to walk back an answer afterward. Skill now has
+7 steps instead of 6; re-verified the resulting flag pattern with a real
+`generate.js` dry-run. Pushed to GitHub:
 `https://github.com/Gopalakrishna-Ratnala/boilerplate-generator` (branch `main`).
 
 ---
@@ -1208,7 +1198,37 @@ for both; live test execution was not, and should be checked on a real machine.
 
 All 4 versions' JSON/syntax validated; test artifacts cleaned up after each run.
 
-## 24. Where things stand — everything through session 18 done
+## 24. Skill now actually asks about Angular version (session 19)
+
+User caught a real, meaningful gap after reading the version-gating work in §23:
+everything built there — `minAngularMajor`/`maxAngularMajor` validation, per-version
+zoneless enablement, ESLint version pinning — was real and tested, but only reachable
+via a direct `generate.js` CLI call. The `new-angular-project` skill, which is what
+anyone actually using this system day-to-day would go through, never asked about
+version at all and silently always generated against latest. Built, but not reachable
+— worth distinguishing those two states explicitly rather than calling it "done."
+
+**Decided explicitly, asked rather than assumed:** add it as a real, always-asked
+question (not a hidden/optional one). New **Step 2** in `SKILL.md` (skill now has 7
+steps, not 6), placed **before** the 8 axis questions rather than after, deliberately —
+the chosen version can invalidate specific axis answers (`oauth-sso` needs ≥22;
+`ngrx-signalstore`/`primeng` need exactly 21), so asking version first avoids having to
+walk back an axis answer the operator already gave. The question is directed at the
+skill's operator directly (not run through Case 1/Case 2 client phrasing), consistent
+with the clarified handoff sequence from session 15 — this is an infrastructure
+decision, not something a client would meaningfully answer.
+
+The new step also tells the skill to catch a version/axis conflict conversationally,
+the same way it already catches `roles:rbac` + `auth:none` — rather than only relying
+on `generate.js`'s own hard validation to be the first thing that notices.
+
+Updated the confirmation summary and the example `generate.js` invocation to include
+`--angular-version`. Re-verified: frontmatter still parses, every flag name still
+matches `generate.js`'s real `AXES`/`args` exactly, and a real dry-run using the exact
+flag pattern the updated skill would now produce (`--angular-version=21` +
+`ngrx-signalstore` + `primeng` together) completed cleanly.
+
+## 25. Where things stand — everything through session 19 done
 
 **Permanent addition to this project's testing discipline, effective immediately**:
 **every full validation pass must include a real `ng build`, not just `ng lint` and
