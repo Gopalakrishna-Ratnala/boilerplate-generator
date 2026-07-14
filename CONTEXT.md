@@ -4,13 +4,14 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-14 (session 10)
-**Status:** All 5 fixed-axis bundles complete and audited. `scripts/generate.js` built
-and end-to-end tested. **The `new-angular-project` Claude Code skill is now built**,
-including Case 2 (non-technical client) question phrasing, drafted for the first time
-this session. Remaining: nothing planned — the system is functionally complete; next
-work would be user-driven real-world testing and any bundle/skill refinements that
-surface from it. Pushed to GitHub:
+**Last updated:** 2026-07-14 (session 11)
+**Status:** Reviewed angular.dev's actual doc structure against everything built —
+found and fixed a real, already-shipped bug (ESLint was never scaffolded, despite
+`CLAUDE.md` promising `ng lint` works) plus 2 real gaps (no `.mcp.json` for Claude Code,
+no error-handling/accessibility guidance). All fixed and tested this session. This was
+also a scope correction: the system isn't "5 axes and done" — it's the company's actual
+Angular standard, and Category-A universal fixes belong in `base/` regardless of client
+answers. Pushed to GitHub:
 `https://github.com/Gopalakrishna-Ratnala/boilerplate-generator` (branch `main`).
 
 ---
@@ -96,12 +97,15 @@ boilerplate-generator/
 │           └── SKILL.md           # ✅ BUILT (session 10) — includes Case 1 + Case 2 phrasing
 ├── base/                          # ✅ BUILT — always-included in every generated repo
 │   ├── CLAUDE.md
+│   ├── .mcp.json                  # ✅ BUILT (session 11) — Angular CLI MCP server for Claude Code
 │   └── .claude/
 │       ├── settings.json
 │       ├── rules/
 │       │   ├── angular.md
 │       │   ├── architecture.md
-│       │   └── security.md
+│       │   ├── security.md
+│       │   ├── error-handling.md  # ✅ BUILT (session 11)
+│       │   └── accessibility.md   # ✅ BUILT (session 11)
 │       └── hooks/
 │           ├── protect-paths.sh
 │           ├── guard-bash.sh
@@ -573,26 +577,106 @@ there's no way to "run" it standalone the way `generate.js` was end-to-end teste
 validation of this skill only happens the first time someone actually uses it inside a
 live Claude Code session and walks through the conversation for real.
 
-## 16. Where things stand — no more planned work, next steps are user-driven
+## 16. Scope correction (session 11): this is the company standard, not "5 axes and done"
 
-Every piece described in the original plan (§2) now exists: `base/`, all 5 bundles,
-`BUNDLE-CONTRACT.md`, `generate.js`, and the skill. There is no more "next thing to
-build" queued up — remaining work is:
+The user corrected the framing this session: the goal was never "answer 5 client
+questions and ship a repo" — it's **the company's actual Angular standard**, and the 5
+fixed axes were the first slice of that, not its ceiling. This reframed how gaps found
+by reviewing angular.dev should be triaged:
 
-1. **Real-world use.** The user should actually run `generate.js` directly (already
-   suggested, not yet confirmed done) and then try the skill inside a live Claude Code
-   session. Both are more meaningfully tested by a real person on a real machine with
-   the correct Node version than by anything further done in this sandbox.
-2. **Verify against the true latest Angular (22.x)** — every test this session ran
-   against whatever `npx` auto-resolved in this sandbox (Angular 21.2.19), since the
-   sandbox's Node version couldn't satisfy the real Angular 22 CLI requirement. This is
-   the single biggest untested gap and should be the first thing checked on a real
-   machine.
-3. **Re-run the full audit pattern from §13** after real-world use surfaces anything —
-   cross-bundle consistency checks have caught something new almost every time they
-   were run this session; there's no reason to assume this stops being true just
-   because the initial build is complete.
-4. Multi-select per axis, the open-axis "unsure" default behavior, and any other item
-   flagged as "not fully resolved" throughout this document remain open — revisit only
-   if real use actually surfaces a need, not preemptively.
+- **Category A — universal, always-on, no client input needed.** These belong directly
+  in `base/`, applied to every generated project regardless of which bundles get
+  selected. Fixed this session (see §17 below).
+- **Category B — real per-project decisions with actual trade-offs**, deserving to
+  become new fixed axes alongside the existing 5 (candidates: internationalization,
+  PWA/offline support). **Not yet built** — would require extending `generate.js`'s
+  `AXES` array, new bundle folders following `BUNDLE-CONTRACT.md`, and new
+  skill questions. Bigger, more invasive change than Category A; deliberately deferred
+  to its own session rather than rushed in alongside the base-layer fixes.
+- **Category C — genuinely cosmetic**, stays out of the bundle system entirely
+  (Tailwind-as-styling-choice, drag-and-drop, web workers).
+
+## 17. Category A fixes — ✅ built and tested (session 11)
+
+Found by fetching and reading angular.dev's actual current doc structure (not from
+memory) and cross-checking every section against what we'd built. Three real findings,
+one of them a serious one:
+
+1. **Real, already-shipped bug: ESLint was never scaffolded.** `ng new` in the current
+   Angular CLI does **not** create `eslint.config.js` by default — confirmed by
+   inspecting actual `generate.js` test output, not assumed. This meant every project
+   generated by this system so far had a `CLAUDE.md` that instructs `ng lint` and claims
+   "Lint: ESLint" as a locked constant, while the command would have actually failed.
+   **Fixed**: added a new `BASE_POST_GENERATE_COMMANDS` mechanism to `generate.js`
+   (distinct from a bundle's `postGenerateCommands` — this one is universal, not tied to
+   any axis selection) that runs `ng add @angular-eslint/schematics --skip-confirmation`
+   for every generated project. **Verified fixed**: real (non-dry-run) test showed
+   `eslint.config.js` created and `ng lint` actually passing afterward — this is the
+   first time this exact command was verified to work at all.
+2. **Second bug found while fixing the first**: the ESLint schematic hardcodes
+   `prefix: 'app'` in its generated selector-naming rules, but this project's own
+   `{{SELECTOR_PREFIX}}` placeholder (used in `CLAUDE.md`/`architecture.md`) can be
+   customized per project. Left alone, a custom-prefix project would ship a lint rule
+   actively contradicting its own documented convention. **Fixed**: added
+   `fixEslintSelectorPrefix()`, a post-processing step using the exact same
+   `selectorPrefix` value already computed for the placeholder system — single source of
+   truth, not a second place to configure it. **Verified**: tested with
+   `--selector-prefix=acme`, confirmed both `component-selector` and
+   `directive-selector` rules in the generated `eslint.config.js` read `'acme'`, not
+   `'app'`.
+3. **`.mcp.json` was researched extensively (original research report called it "the
+   single highest-leverage Angular-specific integration") but never actually shipped.**
+   Confirmed via angular.dev's own MCP setup guide that `ng new` only auto-creates
+   `.vscode/mcp.json` (for VS Code/Cursor) — **not** a project-root `.mcp.json`, which is
+   what Claude Code specifically reads. **Fixed**: added `base/.mcp.json` (the
+   `angular-cli` MCP server config) and wired `generate.js`'s `applyBase()` to copy it
+   into every generated project. **Verified**: confirmed present and correctly-formed in
+   test output.
+
+Two new rule files added (verified copied automatically into every generated project via
+the existing generic recursive copy — no `generate.js` code change needed for this part,
+confirming the base-layer copy mechanism is genuinely generic):
+
+4. **`base/.claude/rules/error-handling.md`** — documents `provideBrowserGlobalErrorListeners()`
+   (confirmed present by default in generated `app.config.ts` by direct inspection, not
+   assumed from Angular's docs alone), the call-site-first error-handling principle, and
+   the pattern for wiring a custom `ErrorHandler` to an error-tracking service without
+   the agent inventing credentials/service choice itself.
+5. **`base/.claude/rules/accessibility.md`** — Angular's official a11y guidance:
+   ARIA attribute binding conventions, focus management after route navigation,
+   `aria-current` via `ariaCurrentWhenActive`, `@defer` + ARIA live regions, and reusing
+   native elements over reimplementing their behavior. Notes that
+   `angular.configs.templateAccessibility` is **already included by default** by the
+   ESLint schematic (discovered while inspecting the generated `eslint.config.js` for
+   the prefix fix above) — so template-level a11y lint enforcement was a free side
+   effect of fixing bug #1, not separately built.
+
+**Testing discipline maintained**: every fix here was verified with a real
+(non-dry-run) `generate.js` run, not just read for plausibility — consistent with every
+other piece of this project. Full JSON validation re-run across the whole repo after
+these changes (all valid); `generate.js` syntax re-checked.
+
+## 18. Where things stand — Category A done, Category B open, next steps still user-driven
+
+Category A (this session) is complete. Still open, in priority order:
+
+1. **Real-world use** — the user should run `generate.js` directly and try the skill in
+   a live Claude Code session. Still the most valuable next validation, unchanged from
+   before this session.
+2. **Verify against true latest Angular (22.x)** on a real machine — still unverified in
+   this sandbox for the reason noted before (Node version). The ESLint schematic fix
+   specifically pinned to `@angular-eslint/schematics` requiring `@angular/cli >=22.0.0
+   <23.0.0` per its own peer dependency — this should resolve cleanly on a real Angular
+   22 machine, but was only tested here against the sandbox's auto-resolved Angular 21.
+3. **Category B — decide and build new fixed axes** (internationalization, PWA/offline,
+   possibly others) if the company wants them formalized as client-facing questions
+   rather than case-by-case developer decisions. Needs: extending `generate.js`'s
+   `AXES` array, new bundle folders per `BUNDLE-CONTRACT.md`, new skill questions (both
+   Case 1 and Case 2 phrasing). Bigger and more invasive than any Category A fix —
+   deserves its own dedicated session, not a rushed add-on.
+4. **Re-run the full audit pattern from §13** — still true that this has caught
+   something new almost every time it's been tried.
+5. Multi-select per axis, the open-axis "unsure" default behavior, and other previously
+   flagged "not fully resolved" items remain open, revisit only if real use surfaces a
+   need.
 

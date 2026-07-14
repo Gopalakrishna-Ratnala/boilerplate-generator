@@ -29,6 +29,14 @@ without a developer's sign-off.
 Selected bundles for this project (see `.claude/rules/` for each):
 {{SELECTED_BUNDLES_LIST}}
 
+## Available tools
+
+This project has the Angular CLI MCP server configured (`.mcp.json`). Prefer its tools
+over guessing: `get_best_practices` for current framework conventions,
+`search_documentation` for API/syntax questions, and `run_target` for build/test/lint —
+rather than assuming an API shape from training data, which may be stale for a
+fast-moving framework.
+
 ## Commands
 
 | Task | Command |

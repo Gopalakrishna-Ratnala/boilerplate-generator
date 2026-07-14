@@ -40,6 +40,15 @@ const BUNDLES_DIR = path.join(REPO_ROOT, 'bundles');
 
 const AXES = ['auth', 'data-layer', 'state', 'roles', 'deploy-target'];
 
+// Commands that run for EVERY generated project, regardless of bundle selection —
+// company-wide standards, not per-client decisions. Contrast with a bundle's
+// `postGenerateCommands`, which only runs when that specific option is selected.
+// Added after discovering `ng new` no longer scaffolds ESLint by default (as of the
+// Angular CLI version tested against) — CLAUDE.md already instructs the agent to run
+// `ng lint`, so without this, every generated project would ship a false promise and a
+// non-functional command.
+const BASE_POST_GENERATE_COMMANDS = ['ng add @angular-eslint/schematics --skip-confirmation'];
+
 // ---------------------------------------------------------------------------
 // Small utilities
 // ---------------------------------------------------------------------------
@@ -209,6 +218,45 @@ function scaffoldAngularWorkspace(projectName, outDir, angularVersion) {
   return projectDir;
 }
 
+function runBasePostGenerateCommands(projectDir, dryRun) {
+  if (!BASE_POST_GENERATE_COMMANDS.length) return;
+
+  if (dryRun) {
+    info('\nℹ️  --dry-run set — skipping base post-generate command(s):');
+    for (const cmdString of BASE_POST_GENERATE_COMMANDS) {
+      info(`   (would run) $ ${cmdString}`);
+    }
+    return;
+  }
+
+  info('\n⚙️  Running base post-generate commands (company-wide standards)...');
+  for (const cmdString of BASE_POST_GENERATE_COMMANDS) {
+    info(`   $ ${cmdString}`);
+    const parts = cmdString.trim().split(/\s+/);
+    const actualCmd = parts[0] === 'ng' ? 'npx' : parts[0];
+    const actualArgs = parts[0] === 'ng' ? ['@angular/cli', ...parts.slice(1)] : parts.slice(1);
+    const ok = run(actualCmd, actualArgs, { cwd: projectDir });
+    if (!ok) {
+      fail(`Base post-generate command failed: ${cmdString}`);
+    }
+  }
+}
+
+function fixEslintSelectorPrefix(projectDir, selectorPrefix) {
+  const eslintConfigPath = path.join(projectDir, 'eslint.config.js');
+  if (!fs.existsSync(eslintConfigPath) || selectorPrefix === 'app') return;
+
+  // The @angular-eslint/schematics generator hardcodes prefix: 'app' regardless of
+  // this project's actual selector prefix (the same {{SELECTOR_PREFIX}} value used in
+  // CLAUDE.md and architecture.md). Left unfixed, the lint rule would actively
+  // conflict with our own documented naming convention for any project with a custom
+  // prefix. Single source of truth: the value passed via --selector-prefix.
+  let content = fs.readFileSync(eslintConfigPath, 'utf8');
+  content = content.split("prefix: 'app'").join(`prefix: '${selectorPrefix}'`);
+  fs.writeFileSync(eslintConfigPath, content);
+  info(`   ✓ Fixed eslint.config.js selector prefix to match this project's ("${selectorPrefix}").`);
+}
+
 // ---------------------------------------------------------------------------
 // Step 4: apply base/ (CLAUDE.md + .claude/) with placeholders filled
 // ---------------------------------------------------------------------------
@@ -242,6 +290,11 @@ function applyBase(projectDir, placeholderValues) {
 
   copyDirRecursive(path.join(BASE_DIR, '.claude'), path.join(projectDir, '.claude'));
 
+  const mcpConfigSrc = path.join(BASE_DIR, '.mcp.json');
+  if (fs.existsSync(mcpConfigSrc)) {
+    fs.copyFileSync(mcpConfigSrc, path.join(projectDir, '.mcp.json'));
+  }
+
   // architecture.md is the one other file with a placeholder token ({{SELECTOR_PREFIX}}).
   const archPath = path.join(projectDir, '.claude', 'rules', 'architecture.md');
   fs.writeFileSync(archPath, fillPlaceholders(fs.readFileSync(archPath, 'utf8'), placeholderValues));
@@ -252,7 +305,7 @@ function applyBase(projectDir, placeholderValues) {
     fs.chmodSync(path.join(hooksDir, f), 0o755);
   }
 
-  info('   ✓ CLAUDE.md, .claude/rules/, .claude/settings.json, .claude/hooks/ in place.');
+  info('   ✓ CLAUDE.md, .claude/rules/, .claude/settings.json, .claude/hooks/, .mcp.json in place.');
 }
 
 // ---------------------------------------------------------------------------
@@ -488,6 +541,11 @@ function main() {
   };
 
   const projectDir = scaffoldAngularWorkspace(projectName, outDir, args['angular-version']);
+
+  runBasePostGenerateCommands(projectDir, dryRun);
+  if (!dryRun) {
+    fixEslintSelectorPrefix(projectDir, selectorPrefix);
+  }
 
   applyBase(projectDir, placeholderValues);
 
