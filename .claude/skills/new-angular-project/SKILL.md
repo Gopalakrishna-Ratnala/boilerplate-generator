@@ -21,6 +21,12 @@ that guarantee breaks. If a step in `generate.js`'s output fails, report the fai
 plainly and stop; do not try to work around it by editing the generated project by
 hand.
 
+**Who runs this skill:** a technical person (developer), typically informed by
+requirements the PO/Designer already gathered from the client — not the non-technical
+person themselves. The non-technical person only starts working *inside* the repo this
+skill produces, once it's already generated and handed off. See `CONTEXT.md` §1 for the
+full handoff sequence.
+
 ## Step 1 — Find out who you're talking to
 
 Ask: **"Is the client (or whoever's answering these) technical, or non-technical?"**

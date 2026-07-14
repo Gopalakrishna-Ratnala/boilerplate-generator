@@ -26,15 +26,29 @@ Conventional flow: PO + Designer gather requirements from the client → finaliz
 **then** hand off to developers, who only start coding after that handoff. Serial,
 slow.
 
-**Goal:** shift left. During the *same* client-requirements conversations, the
-Designer/PO — using AI coding agents (Claude, Codex, Copilot) — generate real working
-code in parallel with the requirements discussion, not just mockups. By the time the
+**Goal:** shift left. A technical person (developer) generates a correctly-configured,
+guardrailed Angular project — informed by the client requirements already gathered —
+**and hands that repo to the Designer/PO**, who then works *inside* it using their own
+AI coding agent (Claude, Codex, Copilot) in parallel with further design/requirements
+work, instead of waiting for a full separate development phase to start. By the time the
 client signs off on the design, working code already exists.
 
-**The risk this creates:** Designers aren't developers. Left alone with an AI agent,
-they (and the agent) could make bad architectural decisions, pick wrong dependencies, or
-produce code inconsistent with how the dev team actually builds — creating a mess for
-developers to inherit, instead of a head start.
+**Clarified handoff sequence (confirmed explicitly by the user, session 15):**
+1. Technical person generates the boilerplate (via `generate.js` directly, or the
+   `new-angular-project` Claude Code skill) — this step is developer-facing, not
+   something the non-technical person operates themselves.
+2. The generator produces and pushes a fully guardrailed repo — `.claude/` config,
+   hooks, and rules already in place before anyone else touches it.
+3. **The non-technical person (Designer/PO) then works inside that already-generated
+   repo**, using their own AI agent — protected by guardrails a developer already set
+   up, not guardrails they configure themselves.
+
+**The risk this creates:** Designers aren't developers. Left alone with an AI agent
+inside that handed-off repo, they (and the agent) could make bad architectural
+decisions, pick wrong dependencies, or produce code inconsistent with how the dev team
+actually builds — creating a mess for developers to inherit, instead of a head start.
+This is exactly why the guardrails are baked in structurally at generation time (step 1)
+rather than relying on the person in step 3 to configure or maintain them correctly.
 
 **Risk categories called out explicitly (all weighted equally):**
 1. Wrong architecture/structure (hard to refactor later)
@@ -80,9 +94,12 @@ user provides. That new repo is what the Designer's AI agent works inside afterw
 - A **Claude Code skill** (conversational) asks the questions, collects the GitHub repo
   URL, and then just *calls* `generate.js` with flags. The AI's role is limited to
   conversation and dispatch, never to hand-assembling the output files itself.
-- Rationale: this keeps the one part of the system most people will actually interact
-  with (a non-developer talking to an AI) from being the part that also decides
-  architecture/deps — that decision is pre-baked into deterministic bundle templates.
+- Rationale: this keeps the part of the system that produces the actual guardrail
+  config (`generate.js`'s deterministic assembly) separate from conversation/judgment
+  calls — even though the skill's *operator* is the technical person (per the
+  clarified handoff sequence above), not the non-technical person, deterministic
+  assembly still matters: it means every generated repo with the same answers is
+  byte-for-byte identical, regardless of how the conversation leading up to it went.
 
 **Repo push:** GitHub Personal Access Token via env var (`GITHUB_TOKEN`), read at
 runtime by `generate.js`, never committed/logged. Target is an **already-created empty
