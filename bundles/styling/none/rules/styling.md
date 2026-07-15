@@ -14,6 +14,21 @@ whatever CSS custom properties the project defines itself.
   `.claude/hooks/check-hardcoded-colors.sh`, which already enforces not scattering
   literal color values across component styles regardless of which styling option is
   selected.
+- **A fresh `styling: none` project has no pre-existing token file to follow** — if
+  `src/styles.scss` doesn't already have a `:root { --color-...: ...; }` block, add
+  one the first time a feature needs a color, rather than reaching for a literal hex
+  value because no example exists yet:
+  ```scss
+  :root {
+    --color-primary: #2563eb;
+    --color-danger: #dc2626;
+    --color-border: #d1d5db;
+    --color-muted: #6b7280;
+  }
+  ```
+  Then reference these via `var(--color-primary)` etc. in component styles — this is
+  hook-enforced (`check-hardcoded-colors.sh` exempts the `:root` definition lines
+  themselves but blocks any other literal color value), not just a suggestion.
 
 ## What the AI agent must NOT do
 
