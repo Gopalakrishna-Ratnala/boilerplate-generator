@@ -1546,6 +1546,15 @@ the `@quik/ui`-vs-bare-Tailwind clarification, and the explicitly-out-of-scope i
 *that project's own* `CLAUDE.md` — deliberately not touched in the shared generator's
 rule files, per the user's explicit "specific to this project" scoping decision.
 
+**Follow-up, same session**: initially bundled the charts/deployment "leave as a
+documented note, don't build generator infrastructure" call into the general
+full-scope go-ahead without getting explicit confirmation on that specific split —
+caught and named this gap directly rather than letting it stand as an unconfirmed
+assumption. Asked separately; **user confirmed both explicitly**: deployment stays a
+documented note ("too infra-specific for this generator"), charts stays a documented
+note ("correctly too niche/proprietary"). No generator changes needed — the existing
+`CLAUDE.md` additions on Maxim's project already matched this exactly.
+
 Full JSON validation and `generate.js` syntax check re-run clean after all changes.
 
 ## 30. Where things stand — everything through session 24 done
