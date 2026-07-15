@@ -31,6 +31,7 @@
  */
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
@@ -1024,7 +1025,20 @@ function main() {
     fail('--project-name must be lowercase, start with a letter, and contain only letters/numbers/hyphens (Angular CLI naming rule).');
   }
 
-  const outDir = path.resolve(args['out-dir'] || process.cwd());
+  // Defensive tilde expansion, found via a real user hitting this exact footgun:
+  // `--out-dir=~/maxim-final` was passed through LITERALLY (not expanded by their
+  // shell) because tilde expansion typically only applies when `~` is the very first
+  // character of a whitespace-separated token — inside `--flag=~/path`, the token
+  // actually starts with `--out-dir=`, so many shells (confirmed: zsh, in this case)
+  // never expand it at all. path.resolve() then treats the literal `~` as just
+  // another folder name relative to cwd, silently nesting the output inside the
+  // generator repo itself instead of the user's home directory. Handle this
+  // ourselves rather than relying on shell behavior that isn't consistent.
+  let rawOutDir = args['out-dir'] || process.cwd();
+  if (rawOutDir === '~' || rawOutDir.startsWith('~/') || rawOutDir.startsWith('~\\')) {
+    rawOutDir = path.join(os.homedir(), rawOutDir.slice(1));
+  }
+  const outDir = path.resolve(rawOutDir);
   const repoUrl = args.repo || null;
   const dryRun = args['dry-run'] === 'true';
   const selectorPrefix = args['selector-prefix'] || projectName.replace(/-/g, '');

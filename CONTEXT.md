@@ -4,28 +4,16 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-15 (session 27)
-**Status:** Reviewed the final 2 test reports (tester 5, tester 6) — **all 6 assigned
-testers have now reported in**. Found and fixed **2 more real, confirmed generator
-bugs**, bringing the total found via this testing exercise to 5. (1) `roles/rbac`
-bundle's `has-role.directive.ts` ships with an unprefixed selector (`[hasRole]`),
-failing `@angular-eslint/directive-selector` on literally every `rbac` project and,
-because the generator's own bootstrap commit runs `eslint --fix` via the pre-commit
-hook, breaking the generator's own initial commit too — fixed by renaming the
-selector *and* its corresponding input property (Angular's structural-directive
-microsyntax requires both to match) to use this project's actual selector prefix,
-verified via a real regeneration of tester 5's exact combination (previously failing
-commit now succeeds, `ng lint`/`ng build` both clean). (2) `lint-staged`'s own
-transitive dependency (`listr2`) uses a Node API (`styleText`) only available from
-Node 20.19 — a **hard `SyntaxError`**, not a warning, failing the generator's
-bootstrap commit entirely on any Node below that floor. Fixed by adding `--no-verify`
-to the generator's own bootstrap commit specifically (which adds no real value there,
-since every file was already run through format-and-lint during generation itself) —
-future developer/agent commits in the generated project remain fully subject to the
-hook. Also added 2 smaller documentation gaps both testers independently surfaced:
-the zoneless `TestBed` provider requirement was undocumented in `angular.md` (both
-testers 5 and 6 hit real test failures before discovering it), and `styling: none`
-had no concrete example for where to define color tokens on a fresh project.
+**Last updated:** 2026-07-15 (session 28)
+**Status:** User hit a real, live footgun while regenerating Maxim's project for final
+lead-review testing: `--out-dir=~/maxim-final` was passed through literally (their
+shell — zsh — did not expand the tilde inside the `--flag=~/path` form, which only
+reliably expands when `~` is the very first character of a whitespace-separated
+token). `path.resolve()` has no awareness of shell tilde expansion either, so the
+project landed nested inside the `boilerplate-generator` repo itself under a literal
+`~` folder, not in the actual home directory. Fixed defensively in `generate.js`:
+manually expand a leading `~` to `os.homedir()` before resolving `--out-dir`,
+verified with a real reproduction of the exact scenario.
 
 ---
 
@@ -1808,7 +1796,39 @@ already done.
 
 Full JSON validation and `generate.js` syntax check re-run clean after all changes.
 
-## 33. Where things stand — everything through session 27 done, all 6 testers reported
+## 33. Tilde-expansion footgun found and fixed during final lead-review testing (session 28)
+
+While regenerating Maxim's project for the final round of testing before lead review,
+the user hit a real, reproducible bug: `--out-dir=~/maxim-final` did not resolve to
+their home directory. Their terminal output showed the project land at
+`.../boilerplate-generator/~/maxim-final/maxim-final` — a literal folder named `~`
+created **inside** the generator repo clone itself.
+
+**Root cause, confirmed via direct reproduction, not assumed**: two independent gaps
+stacked. First, shell tilde expansion (`~` → home directory) is a shell-level
+behavior, and it typically only applies when `~` is the very first character of a
+whitespace-separated token — inside `--out-dir=~/maxim-final`, the actual token
+starts with `--out-dir=`, so many shells (confirmed here: zsh) never expand the
+tilde at all in this exact position. Second, even if the shell had passed a literal
+`~` through, `generate.js`'s own `path.resolve(args['out-dir'] || process.cwd())`
+has zero awareness of tilde expansion — `path` is a pure string-manipulation module,
+not a shell — so it silently treated `~` as an ordinary folder name relative to the
+current working directory.
+
+**Fixed defensively in `generate.js`** rather than just telling the user to change
+their invocation style: if `--out-dir` starts with `~/`, `~\`, or is exactly `~`,
+manually expand it to `os.homedir()` before resolving. Verified by reproducing the
+exact scenario (`--out-dir=~/tilde-test-check`) and confirming the project now lands
+at the actual home directory, with no stray literal `~` folder left anywhere.
+
+Everything else in the user's terminal output was working correctly, worth noting
+explicitly: bundle validation, all 9 axes applying cleanly, the `provideHttpClient`
+wiring fix from session 25 firing correctly (`errorInterceptor` wired automatically),
+selector-prefix fixing, environment population, ESLint tightening, Husky/lint-staged
+setup, and the initial commit all succeeded exactly as designed — the *only* failure
+was the output path itself.
+
+## 34. Where things stand — everything through session 28 done
 
 **Permanent addition to this project's testing discipline, effective immediately**:
 **every full validation pass must include a real `ng build`, not just `ng lint` and
