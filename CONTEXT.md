@@ -4,28 +4,26 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-15 (session 25)
-**Status:** Reviewed the first two real test reports from the parallel testing exercise
-(session 24's `run-feature-test` skill) — both exceptionally detailed, both correctly
-distinguishing real generator gaps from their own judgment calls. **Found and fixed
-the most severe bug in this project's history**: `provideHttpClient()` was never
-wired into `app.config.ts` by anything in this system, despite `basic-auth`, `rest`,
-`saml`, and `graphql` all generating code that assumes it exists — a silent runtime
-failure (`NullInjectorError`) invisible to `ng lint`, `ng build`, and every unit test,
-since tests always supply their own HttpClient testing setup. Only surfaced because a
-tester manually wired a *different*, correctly-documented bundle (PrimeNG) and
-happened to notice HttpClient was also missing while looking closely at
-`app.config.ts`. Fixed at the source via a new `wireHttpClientAndInterceptors()`
-function, using `needsHttpClient`/`httpInterceptors` manifest fields that already
-existed (uncommitted, untraced origin) but were never actually read by `generate.js`.
-Verified across 4 real scenarios (joined interceptors from two axes, a single
-interceptor from a different axis, HttpClient-needed-but-no-interceptor, and the
-correctly-skipped case). Also fixed a repeated, independently-found ambiguity in
-Signal Forms guidance (both testers separately hit the same `FormRoot`-vs-explicit-
-`submit()` question) with a concrete, verified-working code example, plus 4 smaller
-confirmed gaps (accessibility label rule, `architecture.md`'s missing `state/` row,
-`ngrx-signalstore`'s `rxMethod` availability caveat, a component-scoped-provider
-testing note).
+**Last updated:** 2026-07-15 (session 26)
+**Status:** Reviewed 2 more real test reports (tester 2, a correct failure; tester 4, a
+full pass on SSR+PWA+Tailwind). **Found and fixed a second critical bug**: `AuthService`
+(`basic-auth` bundle) calls `localStorage` in a field initializer, which runs eagerly
+since the service is `providedIn: 'root'` — this throws `ReferenceError: localStorage
+is not defined` during SSR prerendering, since `localStorage` doesn't exist in Node.
+Fixed with the standard `isPlatformBrowser()` guard, verified via a real
+`basic-auth`+`deploy-target:ssr` build (previously failing, now clean). **Found and
+addressed the most significant methodological finding across this entire testing
+exercise**: tester 4 discovered — and independent research confirmed as a real, filed
+Claude Code platform limitation (github.com/anthropics/claude-code #52934, #10367) —
+that Claude Code only loads `.claude/settings.json`/hooks from a session's *startup*
+working directory. Since the `run-feature-test` skill's entire flow ran from the
+`boilerplate-generator` clone (which has no `settings.json` of its own), **every
+hook in every prior test report never had a chance to fire at all** — "no hooks
+observed" was not evidence of compliant code, it was evidence the hooks were never
+active. Restructured the skill into a required 2-phase, 2-session flow (generation
+stays autonomous; feature-building now explicitly requires the human to restart
+Claude Code from inside the generated project) — the only reliable fix, per the
+Claude Code community's own findings for this exact limitation.
 
 ---
 
@@ -1647,7 +1645,101 @@ Full JSON validation and `generate.js` syntax check re-run clean after all chang
 including one real syntax risk specifically checked given the new Signal Forms code
 example is a JS template literal containing nested backtick-delimited code blocks.
 
-## 31. Where things stand — everything through session 25 done
+## 31. Second SSR bug fixed, and the most significant methodological finding of the whole testing exercise (session 26)
+
+Reviewed 2 more reports: tester 2 (a correct, expected failure — `oauth-sso` needs
+Angular ≥22, unreachable on their Node) and tester 4 (a full pass on a genuinely
+complex combination — SSR + PWA + Tailwind + multi-language, with real Signal Forms,
+Transloco, and semantic Tailwind tokens all used correctly).
+
+**Second real, confirmed bug, found by tester 4**: a production build with
+`basic-auth` + `deploy-target: ssr` logs `ReferenceError: localStorage is not defined`
+during prerendering (non-fatal — build still exits 0 — but pollutes real build logs
+and is a real correctness issue). Root cause: `AuthService.readStoredToken()` calls
+`localStorage.getItem(...)` inside a field initializer
+(`signal<string | null>(this.readStoredToken())`), which runs the moment the service
+is constructed — and since `AuthService` is `providedIn: 'root'`, Angular's root
+injector graph constructs it eagerly, including during Node-based SSR prerendering,
+where `localStorage` doesn't exist. Tester 4 correctly did not touch this
+protected file themselves, flagging it precisely for the central-brain session
+instead. **Fixed with the standard `isPlatformBrowser()` guard** (inject
+`PLATFORM_ID`, check once, gate all three `localStorage` call sites) — reproduced the
+exact failing combination first, confirmed the original error, then confirmed the fix
+produces a clean `"Prerendered 1 static route"` with no error, via a real generation
+and a real `ng build`, not just a code review.
+
+**The most significant finding, by a wide margin, across the entire parallel-testing
+exercise so far**: tester 4 discovered that no hook ever actually fired during their
+session, and — rather than concluding the code was simply compliant — investigated
+*why*, and found the real cause: Claude Code only loads `.claude/settings.json` (and
+therefore all hooks) from a session's **startup working directory**. The
+`run-feature-test` skill's entire flow (Phase A generation, then feature-building,
+previously all in one continuous session) runs from inside the `boilerplate-generator`
+clone — which was confirmed, by direct inspection, to have **no `.claude/settings.json`
+of its own**, only `.claude/skills/`. This means every file written into a generated
+project at `/tmp/feature-test-<N>/...` during the old single-session flow was written
+by a session whose active hook configuration was *nothing* — not the generated
+project's real hooks.
+
+**Independently verified this is a real, confirmed, filed Claude Code platform
+limitation**, not a guess or a local misconfiguration — via direct web research:
+GitHub issue #52934 ("`[FEATURE] Load .claude/settings*.json and hooks from
+directories added via --add-dir / additionalDirectories`") states plainly: *"Claude
+Code currently loads `.claude/settings.json` ... only from the session's startup
+working directory."* A related filed bug (#10367) confirms hooks can be entirely
+non-functional across subdirectories more generally. The only reliable workaround the
+Claude Code community itself has converged on for this class of problem is
+**restarting Claude Code from the target directory** — there is no way to fix this
+from the generator's side or the skill's own instructions alone.
+
+**Consequence, stated plainly**: every prior test report's "Hook behavior observed:
+none fired" was *not* evidence that the generated code was correctly compliant
+*because of* the hooks — it was evidence the hooks were never active in the first
+place. The actual code compliance seen across all 4 prior reports reflects each
+tester's own careful reading of the rule files (a real, separate, valuable signal
+about whether the *written guidance* is good enough to guide correct behavior on its
+own) — but it says nothing about whether the *hook enforcement layer* itself works in
+real agentic use. That remains genuinely untested as of this session.
+
+**Fixed by restructuring `run-feature-test` into an explicit 2-phase, 2-session
+flow** — the trade-off judged clearly worth it, since hook enforcement is this
+system's core value proposition, and a "fully autonomous" test that structurally
+cannot exercise it is worth much less than a mostly-autonomous one that requires
+exactly one necessary human action:
+- **Phase A** (unchanged, still in the `boilerplate-generator` clone): get the tester
+  number, look up the assignment, generate. Ends by printing explicit handoff
+  instructions and genuinely stopping — does not attempt to build the feature itself.
+- **Phase B** (new): the human opens a **new terminal**, `cd`s into the generated
+  project, starts a fresh `claude` session there (correctly scoped, so its real
+  `.claude/settings.json` hooks are active), and pastes a literal, fully-specified
+  feature-building prompt (same content as before, inlined directly in the skill so
+  Phase A can reproduce it verbatim for the human to paste) — including an explicit,
+  structured summary format that session must output at the end (files touched, full
+  code, hook behavior *actually* observed this time, verification results,
+  assumptions) so it can be pasted back cleanly.
+- **Phase C** (new): back in the original session, the human pastes Phase B's summary,
+  and the original session writes the report from that content, then pushes and
+  cleans up — unchanged from before otherwise.
+
+Also folded in, while restructuring: `--e2e` was missing from the skill's own inlined
+assignment table (`generate.js` now requires 9 axes, the table only listed 8) — tester
+4 found this via a real, immediate command failure and correctly defaulted to
+`--e2e=none` with a documented reason. Fixed the table directly. Also added an
+explicit note for assignment 2 specifically (tester 2's finding) that `oauth-sso`'s
+Angular ≥22 floor makes it categorically unrunnable below Node ≥22.22.3, regardless of
+version-fallback attempts, so a future tester doesn't waste time trying v21/v20/v19
+fallbacks that would fail identically.
+
+**One more smaller, real gap fixed**: `mockResponse()`'s simulated network delay is
+scheduled via a raw `setTimeout`, which zoneless change detection's `whenStable()`
+does not track (only `PendingTasks`-integrated async work) — a real, easy-to-hit
+testing trap tester 4 hit and had to work around. Documented in the `mock`
+data-layer bundle's rules.
+
+Full JSON validation, `generate.js` syntax check, and the restructured skill's
+frontmatter all re-verified clean after all changes.
+
+## 32. Where things stand — everything through session 26 done
 
 **Permanent addition to this project's testing discipline, effective immediately**:
 **every full validation pass must include a real `ng build`, not just `ng lint` and
@@ -1687,6 +1779,16 @@ running the app in a browser and clicking something that makes an HTTP call — 
 is exactly why the parallel feature-building exercise (not just structural
 generation-tests) exists, and exactly the kind of bug this project's earlier
 lint/build-only validation could never have found on its own.
+
+**Fifth permanent lesson, from session 26**: **verify a testing tool's own scoping
+assumptions before trusting what it reports as "didn't happen."** An agentic testing
+session that reports "no hooks fired" can mean either "the code was compliant" or
+"the hooks were never wired for this session at all" — and those are completely
+different findings that look identical from the outside unless someone actually
+checks *why* nothing fired, the way tester 4 did. Any future automated or
+semi-automated testing setup for this project (or any Claude-Code-based guardrail
+system generally) needs to independently confirm its enforcement layer was actually
+active during the run, not just that no violation was observed.
 
 1. **Upgrade Node on the test machine to at least v22.22.3 (or v24.15+/v26+).** This is
    now the clear #1 blocker, confirmed twice over (this sandbox, then the user's real

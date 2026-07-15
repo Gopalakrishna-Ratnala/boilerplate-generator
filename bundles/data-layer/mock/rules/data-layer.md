@@ -16,6 +16,16 @@ work the same way they will once a real API exists).
 - Simulate simple filtering/pagination/search *client-side* against the fixture data if
   a feature needs it to feel realistic (e.g. `.filter()` on the mock array before
   wrapping in `mockResponse()`).
+- **When testing a component that consumes `mockResponse()`'s simulated delay**: don't
+  assume `await fixture.whenStable()` will wait for it. Found via a real test report —
+  `mockResponse()`'s delay is scheduled via a raw `setTimeout` (inside
+  `of(value).pipe(delay(delayMs))`), and under zoneless change detection,
+  `whenStable()` only tracks `PendingTasks`-integrated async work, not a bare
+  `setTimeout`. A test that calls `detectChanges()` then immediately asserts (even
+  after `whenStable()`) can see an empty/stale result. Either use Vitest's fake timers
+  (`vi.useFakeTimers()` + `vi.advanceTimersByTime(...)`) to control the delay
+  deterministically, or genuinely wait past the mock delay before re-running
+  `detectChanges()` — don't assume `whenStable()` alone covers it.
 
 ## What the AI agent must NOT do
 
