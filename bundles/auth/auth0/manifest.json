@@ -1,0 +1,7 @@
+{
+  "axis": "auth",
+  "option": "auth0",
+  "label": "Auth0",
+  "description": "Login via Auth0 using the official @auth0/auth0-angular SDK (provideAuth0, functional guard/interceptor).",
+  "claudeMdSummaryLine": "Auth: Auth0 (@auth0/auth0-angular)"
+}

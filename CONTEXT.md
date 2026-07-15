@@ -4,20 +4,29 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-14 (session 22)
-**Status:** User asked to review the official `angular/skills` repo (the Angular team's
-own agent-skills reference) and integrate whatever this project was missing. Found and
-implemented 6 real, verified gaps: `linkedSignal`/`resource()` never mentioned;
-Signal Forms treated as an opt-in exception when the official skill states it's the
-actual v21+ default; Data Resolvers absent; Component Harnesses absent; no E2E testing
-mention at all; Angular Aria's specific component list was vague. **Implementing the
-Signal Forms fix exposed a real, separate regression**: pinning the ESLint schematic
-to an assumed "latest" version (added last session) breaks when the sandbox's actual
-`ng new` resolution differs from that assumption — fixed by reading the *actually
-scaffolded* Angular version from the real `package.json` after scaffolding and using
-that for every downstream decision, not the pre-generation guess. **Nothing in this
-session has been pushed yet, per the user's standing instruction** from earlier in
-this conversation — everything below is staged locally only, pending confirmation.
+**Last updated:** 2026-07-15 (session 24)
+**Status:** Two sessions since the last `CONTEXT.md` update. **Session 23** (previously
+undocumented): a real team member's first live run of `run-feature-test` hit two real
+friction points — `git`/filesystem hangs from the repo being cloned inside `~/Desktop`
+(iCloud Drive sync interference, not a generator bug) and Claude Code's own built-in
+security prompt for `cd && >` compound commands (self-inflicted by Claude's own
+defensive workaround while fighting the hang). Both fixed: `FEATURE-TEST-PLAN.md` now
+warns against cloud-synced clone locations upfront, and the skill explicitly avoids
+the `cd`+redirect pattern and `timeout` (absent on macOS by default).
+**Session 24** (this one): user shared a real client's (Maxim's) actual answers to a
+company decision-tree document and asked whether the generator actually supports what
+was requested. Found 5 real gaps by going through all 11 answers point by point, then
+— given explicit approval for full scope — built the priority ones: two new,
+fully-verified `auth` bundle options (`auth0`, `cognito`, both tested via real
+generation + manual SDK wiring + real build), a new `e2e` axis (`playwright`/`none`,
+verified including protected `playwright.config.ts`), and a new hook
+(`check-raw-tailwind-utility.sh`) closing a real gap in Tailwind's design-token
+enforcement — the existing hardcoded-color hook caught literal hex/rgb/hsl values but
+not raw Tailwind palette utility classes (`bg-blue-500`), which was Maxim's actual
+stated requirement. **Generated Maxim's real project** with the correct combination
+and added project-specific "planned for phase 2" guidance (SignalStore/i18n/auth
+migration readiness) directly to that project's own `CLAUDE.md` — deliberately
+scoped to that one project, not the shared generator, per explicit instruction.
 
 ---
 
@@ -1433,7 +1442,113 @@ source files alone.
 
 Full JSON validation and `generate.js` syntax check re-run clean after all changes.
 
-## 28. Where things stand — everything through session 22 done
+## 28. Real-machine friction found on first live skill run (session 23, previously undocumented)
+
+A team member (Giresh) ran `run-feature-test` for real for the first time. Two real,
+non-generator-logic issues surfaced:
+
+1. **`git status` hung for 2 minutes, then 30 seconds again** — the clone lived at
+   `~/Desktop/new folder/boilerplate-generator`. `~/Desktop` is commonly synced by
+   iCloud Drive on Mac, a confirmed real cause of exactly this symptom (filesystem
+   operations blocking on background sync/eviction). Not a bug in `generate.js` or the
+   skill — an environment issue. Fixed by adding an explicit warning to
+   `FEATURE-TEST-PLAN.md`'s Step 0, before anyone clones, to use a non-cloud-synced
+   location (`~/dev`, `~/projects`, etc.).
+2. **Claude Code's own built-in security prompt** ("Compound command contains `cd`
+   with output redirection — manual approval required") interrupted the
+   zero-questions design. This was self-inflicted: Claude's own defensive workaround
+   while fighting the hang above (redirecting output to a log file, chained with `cd`
+   in one command) triggered a real Claude Code product-level safety check — not
+   something in the skill's own instructions. Also attempted (and failed) to use
+   `timeout`, which doesn't exist on macOS by default. Fixed by adding explicit
+   guidance in the skill to avoid the `cd && >` pattern entirely and not rely on
+   `timeout` — if a command seems to hang, suspect a cloud-synced folder and say so in
+   the report rather than fighting it with workarounds.
+
+Both fixes verified for internal consistency (frontmatter, no other instances of the
+same pattern) before pushing.
+
+## 29. Real client requirements cross-checked against the generator, 5 gaps closed (session 24)
+
+User shared a real company decision-tree document plus a real client's (Maxim's)
+actual answers to it, and asked whether the generator genuinely supports what was
+requested — not hypothetically, for an actual project needing to start. Went through
+all 11 answers point by point rather than assuming coverage.
+
+**5 real gaps found:**
+1. Tailwind "gated through design tokens (semantic utilities, not raw classes)" —
+   the existing `check-hardcoded-colors.sh` hook only catches literal hex/rgb/hsl
+   values, not raw Tailwind palette utility classes (`bg-blue-500` vs `bg-primary`).
+2. Playwright e2e testing — client had already decided on it; this system had zero
+   actual scaffolding for any e2e tool (only a passing mention that Playwright is one
+   of five options Angular's own CLI supports).
+3. Auth0 and AWS Cognito specifically — client's real options; this system only had a
+   generic OIDC (`oauth-sso`) auth bundle, not either provider's actual idiomatic SDK.
+4. Superset-embedded charts + gridstack layout — entirely outside scope, correctly
+   flagged as too client-specific to build a generator axis for, not attempted.
+5. AWS S3 + GitLab CI OIDC deployment — entirely outside scope, same treatment as #4.
+
+**Also surfaced a structural pattern**: 3 of Maxim's answers (state, i18n, auth) were
+"not needed yet, but explicitly planned" — a genuinely different answer than a flat
+"no," needing different guidance ("structure this so adding it later is easy," not
+"don't add this"). Confirmed with the user this should be handled specific to this
+project, not as a general reusable system feature — implemented as project-specific
+`CLAUDE.md` additions on Maxim's own generated repo, not changes to the shared bundle
+rule files.
+
+**Given explicit approval for full scope, built and verified the priority gaps (1–3),
+each with the same real-generation + real-build discipline as every other bundle in
+this project:**
+
+- **`auth: auth0`** — real `@auth0/auth0-angular` SDK (verified: no upper version
+  bound, `>=13` peer dependency). Isolated, protected `auth0.config.ts` (matching the
+  existing `oauth.config.ts` pattern); a thin project-owned `AuthService` wrapper
+  around Auth0's own service, using the current functional APIs (`authGuardFn`,
+  `authHttpInterceptorFn`) — not the deprecated class-based ones. Verified via real
+  generation, `ng lint`, and a real `ng build` with `provideAuth0(...)` manually wired
+  into `app.config.ts` (the same "manual wiring required" pattern as PrimeNG, since
+  there's no CLI schematic for this).
+- **`auth: cognito`** — `aws-amplify` v6's functional Auth API (`signIn`, `signOut`,
+  `getCurrentUser`, `fetchAuthSession` from `aws-amplify/auth`), explicitly scoped to
+  an *existing* Cognito user pool (not the Amplify CLI/backend-provisioning workflow,
+  which assumes Amplify owns the resources — confirmed this distinction matters via
+  research, not assumed). Same isolated-config + thin-wrapper pattern as Auth0.
+  Verified via real generation, lint, and build with `configureCognito()` manually
+  wired into `main.ts`.
+- **New `e2e` axis** (`none`/`playwright`) — `@playwright/test` installed statically
+  (deps + a protected `playwright.config.ts` + a starter test) rather than via the
+  interactive `npm init playwright@latest` initializer, avoiding exactly the kind of
+  hang seen in session 23. Verified via real generation and lint/build; actual test
+  execution blocked by this sandbox's network restrictions on the Chrome-for-Testing
+  download (same class of limitation as the Google Fonts case in session 17 — a
+  sandbox constraint, not a generator bug).
+- **`check-raw-tailwind-utility.sh`** — new universal hook (harmless on non-Tailwind
+  projects, since the class names it checks for can't appear there), tested with 4
+  real cases (raw color utility blocked, semantic class allowed, non-color utility
+  allowed, gradient utility also correctly blocked). Added to `base/` since it directly
+  addresses a real, confirmed client requirement.
+- **Skill updated** (`new-angular-project`): Q1 (auth) now offers `auth0`/`cognito`
+  alongside the existing options, with explicit guidance not to force a choice when a
+  client hasn't decided between providers yet (matches Maxim's actual "still open"
+  answer) — default to `none` and note the open decision in `--description` rather
+  than generating something that has to be undone later. New Q9 for e2e testing.
+  Question count, confirmation summary, and the invocation example all updated and
+  re-verified for consistency (frontmatter, flag names matching `generate.js`'s real
+  `AXES` exactly).
+
+**Generated Maxim's actual project** (`--angular-version=21`, the real combination of
+answers, defaulting `data-layer`/`roles` — genuinely absent from the client's own
+decision-tree scope — to `rest`/`single-role` and stating that assumption explicitly
+rather than silently picking). Verified real `ng lint` and `ng build` both clean.
+Added the "planned for phase 2" guidance (SignalStore/i18n/auth migration readiness),
+the `@quik/ui`-vs-bare-Tailwind clarification, and the explicitly-out-of-scope items
+(Superset/gridstack, AWS/GitLab deployment) as a new section appended directly to
+*that project's own* `CLAUDE.md` — deliberately not touched in the shared generator's
+rule files, per the user's explicit "specific to this project" scoping decision.
+
+Full JSON validation and `generate.js` syntax check re-run clean after all changes.
+
+## 30. Where things stand — everything through session 24 done
 
 **Permanent addition to this project's testing discipline, effective immediately**:
 **every full validation pass must include a real `ng build`, not just `ng lint` and
@@ -1499,11 +1614,15 @@ generated output is not proven to work on another's without testing it.
    that lint/test alone couldn't catch, **this verification matters more than ever** —
    there could be other version-specific issues only a real Angular 22 + sufficient
    Node build would surface.
-7. **Re-run the full audit pattern from §13** — now covering 8 axes across 22 total
-   bundle options, 12 hooks, and a substantially larger `angular.md`/`architecture.md`
+7. **Re-run the full audit pattern from §13** — now covering 9 axes across 25 total
+   bundle options, 13 hooks, and a substantially larger `angular.md`/`architecture.md`
    — this has caught something new literally every time it's been tried, no reason to
    expect that stops now.
-8. Multi-select per axis, the open-axis "unsure" default behavior, other previously
+8. **Verify Playwright e2e test execution on a real machine** — this sandbox's
+   network restrictions blocked the Chrome-for-Testing download, so only
+   generation/lint/build were confirmed for the `e2e:playwright` bundle, not an
+   actual passing e2e test run.
+9. Multi-select per axis, the open-axis "unsure" default behavior, other previously
    flagged "not fully resolved" items, and any further Category B candidates remain
    open — revisit only if real use surfaces a need.
 

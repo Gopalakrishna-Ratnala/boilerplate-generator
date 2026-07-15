@@ -1,0 +1,6 @@
+{
+  "deny": [
+    "Edit(./src/app/core/config/auth0.config.ts)",
+    "Write(./src/app/core/config/auth0.config.ts)"
+  ]
+}

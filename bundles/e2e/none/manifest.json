@@ -1,0 +1,7 @@
+{
+  "axis": "e2e",
+  "option": "none",
+  "label": "None",
+  "description": "No end-to-end testing scaffolded. Unit tests only.",
+  "claudeMdSummaryLine": "E2E testing: none (unit tests only)"
+}

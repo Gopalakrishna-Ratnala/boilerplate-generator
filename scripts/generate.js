@@ -38,7 +38,7 @@ const REPO_ROOT = path.resolve(__dirname, '..');
 const BASE_DIR = path.join(REPO_ROOT, 'base');
 const BUNDLES_DIR = path.join(REPO_ROOT, 'bundles');
 
-const AXES = ['auth', 'data-layer', 'state', 'roles', 'deploy-target', 'i18n', 'offline', 'styling'];
+const AXES = ['auth', 'data-layer', 'state', 'roles', 'deploy-target', 'i18n', 'offline', 'styling', 'e2e'];
 
 // Used only when --angular-version isn't specified (meaning "use whatever `ng new`
 // resolves as latest"). This must be kept updated as Angular ships new majors —

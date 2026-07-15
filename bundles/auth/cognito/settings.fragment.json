@@ -1,0 +1,6 @@
+{
+  "deny": [
+    "Edit(./src/app/core/config/cognito.config.ts)",
+    "Write(./src/app/core/config/cognito.config.ts)"
+  ]
+}

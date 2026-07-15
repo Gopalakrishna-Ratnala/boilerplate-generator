@@ -1,0 +1,7 @@
+{
+  "axis": "e2e",
+  "option": "playwright",
+  "label": "Playwright",
+  "description": "End-to-end testing via Playwright (@playwright/test), installed statically rather than via the interactive `npm init playwright@latest` initializer.",
+  "claudeMdSummaryLine": "E2E testing: Playwright (@playwright/test)"
+}

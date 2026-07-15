@@ -1,0 +1,7 @@
+{
+  "axis": "auth",
+  "option": "cognito",
+  "label": "AWS Cognito",
+  "description": "Login via an existing AWS Cognito User Pool, using the aws-amplify library's functional v6 Auth API (not the Amplify CLI/backend-provisioning workflow, which assumes Amplify manages the Cognito resources itself).",
+  "claudeMdSummaryLine": "Auth: AWS Cognito (aws-amplify v6 functional Auth API, existing user pool)"
+}

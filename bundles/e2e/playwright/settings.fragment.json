@@ -1,0 +1,6 @@
+{
+  "deny": [
+    "Edit(./playwright.config.ts)",
+    "Write(./playwright.config.ts)"
+  ]
+}

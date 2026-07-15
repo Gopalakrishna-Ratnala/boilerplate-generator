@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "aws-amplify": "^6.18.0"
+  },
+  "devDependencies": {}
+}

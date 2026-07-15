@@ -42,6 +42,13 @@ Each token automatically generates matching utility classes (`bg-brand`,
   or a component's styles** — use a `@theme`-defined token instead. This is already
   hook-enforced project-wide (`check-hardcoded-colors.sh`), not unique to this bundle,
   but especially relevant here since there's no design system doing this automatically.
+- **Never use a raw Tailwind palette utility class** (`bg-blue-500`, `text-red-600`,
+  `from-purple-400`, etc.) **— use a semantic, `@theme`-defined class instead**
+  (`bg-primary`, `text-danger`). This is a *different* check from the hex/rgb/hsl rule
+  above — a raw utility class isn't a literal color value, but it's still a color
+  choice made directly in markup instead of routed through this project's design
+  tokens, which is exactly what "styling gated through design tokens" means. Also
+  hook-enforced (`check-raw-tailwind-utility.sh`), not just a style preference.
 - Do not add a component library (Material, PrimeNG) alongside this — this project's
   styling bundle selection is custom/Tailwind.
 - Do not create a `tailwind.config.js` — that's the v3 pattern; this project uses v4's
