@@ -117,11 +117,7 @@
 
 ## Zoneless
 
-- This project runs zoneless (`provideZonelessChangeDetection()`), configured in
-  `app.config.ts`. Do not add `zone.js` back to polyfills or `angular.json`.
-- Because of this, don't rely on implicit change detection from timers/promises the way
-  a zone-based app might — a signal update or explicit trigger is what causes
-  re-render.
+{{ZONELESS_GUIDANCE}}
 
 ## Testing
 
@@ -131,15 +127,9 @@
   Test files are `*.spec.ts`, colocated with the file they test.
 - Use `TestBed` for component/service tests as normal — the `describe`/`it`/`expect`
   API is the same shape across both runners.
-- **This project is zoneless** (no `zone.js`) — **every `TestBed.configureTestingModule`
-  needs the same zoneless change-detection provider this project's `app.config.ts`
-  already uses** (`provideZonelessChangeDetection()` or
-  `provideExperimentalZonelessChangeDetection()`, whichever `app.config.ts` actually
-  imports — check that file rather than guessing the name) in its own `providers`
-  array. Skipping this throws `NG0908: this configuration requires Zone.js` — found via
-  a real test report where every spec written without it failed until this was added.
-  The generated `app.component.spec.ts`/`app.spec.ts` already includes it — use it as
-  the reference pattern for every new spec file, not just the app-level one.
+- **This project is zoneless** (no `zone.js`) — see the "Zoneless" section above for
+  exactly what that does and doesn't require in test files for this project's Angular
+  version specifically. Don't assume either way without checking that section.
 - Write a test for any new component's key behavior and any new service's public
   methods. Do not skip tests to move faster — the hook running lint/tests will catch
   missing coverage on obvious cases, but don't rely on that as the only bar.

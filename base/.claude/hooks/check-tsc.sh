@@ -50,8 +50,13 @@ if [ "$TSC_EXIT" -ne 0 ]; then
   if [ "$ERROR_COUNT" -gt 15 ]; then
     echo "... and $((ERROR_COUNT - 15)) more error(s). Run 'npx tsc --noEmit' to see all." >&2
   fi
+  # Exit 1, not 0 — found via real testing that Claude Code silently discards a
+  # PostToolUse hook's output on exit 0 (only reaches an internal debug log, never
+  # the visible transcript). A "non-blocking warning" that always exits 0 is
+  # actually invisible, not just non-blocking. Non-blocking AND visible requires a
+  # non-zero, non-2 exit code.
+  exit 1
 fi
 
-# Non-blocking — a type error mid-edit shouldn't halt the agent's task, but it
-# should be visible immediately rather than only surfacing at build time.
+# Nothing to report — this is the genuine "no issue" case, exit 0 is correct here.
 exit 0

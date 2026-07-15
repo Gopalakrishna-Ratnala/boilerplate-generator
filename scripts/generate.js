@@ -1112,6 +1112,46 @@ function main() {
 
   let formsGuidance = computeFormsGuidance(targetAngularMajor);
 
+  // Zoneless guidance, fixed after a real test report found the previous universal
+  // claim was simply wrong for v21+: angular.md asserted every project has an
+  // explicit provideZonelessChangeDetection() call in app.config.ts. Verified via a
+  // real fresh v21 generation that this is false — v21+ ships zoneless by default
+  // (no zone.js polyfill ever added) with NO explicit provider call anywhere. The
+  // explicit call only genuinely exists for v19/v20, where enableZonelessForLegacyVersion()
+  // adds it ourselves (those versions don't default to zoneless). Rules must describe
+  // what's actually in the file, not assume the same shape across every version.
+  function computeZonelessGuidance(major) {
+    if (major <= 20) {
+      return `- This project runs zoneless — **an explicit provider call
+  (\`provideZonelessChangeDetection()\` on v20, \`provideExperimentalZonelessChangeDetection()\`
+  on v19) is present in \`app.config.ts\`**, added deliberately since Angular ${major}
+  doesn't default to zoneless on its own. Do not remove it, and do not add \`zone.js\`
+  back to polyfills or \`angular.json\`.
+- Because of this, don't rely on implicit change detection from timers/promises the way
+  a zone-based app might — a signal update or explicit trigger is what causes re-render.
+- **Every \`TestBed.configureTestingModule\` needs the same provider** in its own
+  \`providers\` array — skipping this throws \`NG0908: this configuration requires
+  Zone.js\`. The generated \`app.component.spec.ts\`/\`app.spec.ts\` already includes it —
+  use it as the reference pattern for every new spec file, not just the app-level one.`;
+    }
+    return `- This project runs zoneless — but on Angular ${major}, **this is the
+  default with no explicit provider call at all**. \`app.config.ts\` will NOT contain
+  \`provideZonelessChangeDetection()\` or similar, and that's correct, not a bug to fix
+  — don't add one "to be safe" or because an example elsewhere shows one (that pattern
+  applies to v19/v20 only, where it's genuinely needed). The project is zoneless
+  simply because \`zone.js\` was never added to polyfills in the first place — verify
+  this directly in \`angular.json\`/\`app.config.ts\` rather than assuming either way.
+- Because of this, don't rely on implicit change detection from timers/promises the way
+  a zone-based app might — a signal update or explicit trigger is what causes re-render.
+- **No \`TestBed.configureTestingModule\` needs a zoneless provider either** — confirmed
+  via real testing (19/19 specs passing with zero zoneless provider anywhere) that
+  v21+'s default-zoneless behavior needs no explicit opt-in in tests any more than it
+  does in \`app.config.ts\`. Don't add \`provideZonelessChangeDetection()\` to a spec
+  "just in case" — it isn't needed and isn't what the generated
+  \`app.component.spec.ts\`/\`app.spec.ts\` for this version actually does.`;
+  }
+  let zonelessGuidance = computeZonelessGuidance(targetAngularMajor);
+
   const placeholderValues = {
     PROJECT_NAME: projectName,
     ONE_LINE_PROJECT_DESCRIPTION: args.description || 'Generated Angular application.',
@@ -1122,6 +1162,7 @@ function main() {
     SELECTED_BUNDLES_LIST: bundleSummaryLines,
     TEST_RUNNER: testRunner,
     FORMS_GUIDANCE: formsGuidance,
+    ZONELESS_GUIDANCE: zonelessGuidance,
   };
 
   const projectDir = scaffoldAngularWorkspace(projectName, outDir, args['angular-version']);
@@ -1155,8 +1196,10 @@ function main() {
         targetAngularMajor = actualMajor;
         testRunner = targetAngularMajor >= 21 ? 'Vitest' : 'Karma/Jasmine';
         formsGuidance = computeFormsGuidance(targetAngularMajor);
+        zonelessGuidance = computeZonelessGuidance(targetAngularMajor);
         placeholderValues.TEST_RUNNER = testRunner;
         placeholderValues.FORMS_GUIDANCE = formsGuidance;
+        placeholderValues.ZONELESS_GUIDANCE = zonelessGuidance;
       }
     }
   } catch (e) {

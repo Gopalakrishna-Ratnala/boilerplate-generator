@@ -4,16 +4,27 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-15 (session 28)
-**Status:** User hit a real, live footgun while regenerating Maxim's project for final
-lead-review testing: `--out-dir=~/maxim-final` was passed through literally (their
-shell — zsh — did not expand the tilde inside the `--flag=~/path` form, which only
-reliably expands when `~` is the very first character of a whitespace-separated
-token). `path.resolve()` has no awareness of shell tilde expansion either, so the
-project landed nested inside the `boilerplate-generator` repo itself under a literal
-`~` folder, not in the actual home directory. Fixed defensively in `generate.js`:
-manually expand a leading `~` to `os.homedir()` before resolving `--out-dir`,
-verified with a real reproduction of the exact scenario.
+**Last updated:** 2026-07-15 (session 29)
+**Status:** The user ran the first genuinely hook-active feature-building test — a
+fresh Claude Code session started correctly inside `maxim-final` itself, so hooks
+were actually live for the first time in this entire testing exercise. Found 4 more
+real, confirmed issues. **Most important**: `check-missing-spec.sh` and
+`check-tsc.sh` were designed as non-blocking warnings (print to stderr, `exit 0`) —
+but Claude Code silently discards a `PostToolUse` hook's output on exit 0 (confirmed
+via Claude Code's own documentation and filed GitHub issues), so these warnings had
+**never been visible to anyone since either hook was built**. Fixed by exiting 1
+(non-zero, non-2 — visible but non-blocking) specifically when there's something to
+report. Also fixed: `check-hardcoded-colors.sh` only recognized hex/rgb()/hsl(), not
+newer CSS color functions (`oklch()`/`lab()`/`lch()`/`color()`) — a real gap since
+Tailwind v4's own default tokens commonly use `oklch()` — and only scanned
+`.scss`/`.css`/`.html`, never `.ts`, missing color literals inside inline templates
+entirely; both fixed and verified with real block/pass cases, including confirming
+no false positives against this project's own real config files. Also found and
+fixed a real, confirmed documentation inaccuracy: `angular.md` claimed every project
+has an explicit `provideZonelessChangeDetection()` call — verified via a real fresh
+v21 generation that this is simply false for v21+ (zoneless by default, zero
+explicit provider anywhere) and only true for v19/v20 (where the generator adds it
+deliberately) — fixed with real version-conditional content, verified for both cases.
 
 ---
 
@@ -1828,7 +1839,76 @@ selector-prefix fixing, environment population, ESLint tightening, Husky/lint-st
 setup, and the initial commit all succeeded exactly as designed — the *only* failure
 was the output path itself.
 
-## 34. Where things stand — everything through session 28 done
+## 34. First genuinely hook-active test run — a systemic hook-visibility bug found (session 29)
+
+The user opened a fresh Claude Code session correctly scoped inside `maxim-final`
+itself and built the Products feature for real — the first time in this entire
+testing exercise that hooks were actually live during a feature-build (every prior
+report, across 6 testers, ran from a session with no active `.claude/settings.json`
+at all, per session 26's finding). The resulting report found 4 more real issues.
+
+**Most significant**: the agent noted it *expected* `check-missing-spec.sh` to warn
+on 5 new files written without a matching spec yet, but never saw the warning
+surface — and explicitly flagged this as worth investigating rather than assuming
+the hook silently didn't fire. Investigated via Claude Code's own documentation and
+multiple filed GitHub issues (confirmed, not just theorized): **a `PostToolUse`
+hook's stdout/stderr is silently discarded when it exits 0** — that output only
+reaches an internal debug log, never the visible transcript. Both `check-missing-spec.sh`
+and `check-tsc.sh` were built as "warn but don't block" hooks using exactly the
+pattern that triggers this — print a warning to stderr, then `exit 0` unconditionally.
+**This means neither hook's warning has ever been visible to anyone, since the day
+either was built** — not a recent regression, a design flaw present from the start,
+only surfaced now because this was the first time a hook-active session with a
+matching trigger condition actually occurred. Fixed both: exit 1 (non-zero, non-2 —
+confirmed via the same documentation to be genuinely non-blocking *and* visible)
+specifically when there's something to report, `exit 0` only for the true
+"nothing to warn about" case. Verified with real, isolated test cases for each
+(missing spec / spec present; real type error / no type error) — the second
+`check-tsc.sh` test initially seemed to fail (exit 1 when a clean file was expected
+to pass) until realized this was a test-setup mistake, not a hook bug: `tsc --noEmit`
+checks the whole project, and a previous test's deliberately-broken file was still
+present in the same directory — corrected the test, confirmed the hook logic was
+right all along.
+
+**Two real, confirmed gaps in `check-hardcoded-colors.sh`**, both found by the agent
+actually noticing what it could get away with, not assumed: (1) the color-literal
+regex only recognized hex/`rgb()`/`hsl()`, never the newer CSS color functions
+(`oklch()`, `oklab()`, `lab()`, `lch()`, `color()`) — a real gap, not theoretical,
+since Tailwind v4's own default generated tokens commonly use `oklch()`. (2) the hook
+only ever matched `*.scss`/`*.css`/`*.html`, never `*.ts` — but this project's own
+components use Angular's inline-template pattern (`angular.md` explicitly prefers it
+for small components), so a color literal dropped directly into an inline
+`template:`/`styles:` string was completely invisible to this hook. Fixed both,
+verified with real cases (`oklch()` in `.scss` now blocks; a hex color inside an
+inline `.ts` template now blocks; plain non-color `.ts` content and legitimate
+`var(--...)` usage still correctly pass) — and specifically verified this project's
+own real bundle config files (`auth0.config.ts`, `cognito.config.ts`,
+`primeng-theme.config.ts`, `oauth.config.ts`) don't trigger false positives now that
+`.ts` is scanned. Separately confirmed `check-raw-tailwind-utility.sh` already
+covered `.ts` correctly, and that a Tailwind arbitrary-value hex literal
+(`bg-[#ff0000]`) was already caught by the hex regex regardless of file type — no
+fix needed for either of those.
+
+**A real, confirmed documentation inaccuracy**, independently found (not the same
+finding as any prior session): `angular.md`'s "Zoneless" section asserted every
+project has an explicit `provideZonelessChangeDetection()` call in `app.config.ts`,
+and that every `TestBed` needs the matching provider. Verified via a real fresh v21
+generation that this is **simply false for v21+** — no explicit provider call
+exists anywhere (confirmed: real `app.config.ts` content, real `angular.json` with
+no `polyfills` field), and the project is zoneless purely by `zone.js` never being
+added in the first place. The claim is only true for v19/v20, where
+`enableZonelessForLegacyVersion()` deliberately adds the explicit call (those
+versions don't default to zoneless). Fixed with real, version-conditional content
+(`computeZonelessGuidance()`, same pattern as `TEST_RUNNER`/`FORMS_GUIDANCE`),
+merging in the previously-separate, now-consistent `TestBed` guidance from the
+Testing section rather than leaving two claims that could drift apart again.
+Verified for both v19 and v21 via real generation, confirming each gets the
+correct, accurate content — and a full real lint/build/test pass on the v21 case
+afterward.
+
+Full JSON validation and `generate.js` syntax check re-run clean after all changes.
+
+## 35. Where things stand — everything through session 29 done
 
 **Permanent addition to this project's testing discipline, effective immediately**:
 **every full validation pass must include a real `ng build`, not just `ng lint` and
@@ -1878,6 +1958,18 @@ checks *why* nothing fired, the way tester 4 did. Any future automated or
 semi-automated testing setup for this project (or any Claude-Code-based guardrail
 system generally) needs to independently confirm its enforcement layer was actually
 active during the run, not just that no violation was observed.
+
+**Sixth permanent lesson, from session 29**: **a "non-blocking warning" hook that
+always exits 0 is not actually a warning — it's silent, full stop.** Claude Code
+discards a `PostToolUse` hook's output entirely on exit 0 (confirmed via official
+docs and multiple filed GitHub issues); only a non-zero, non-2 exit code produces a
+visible-but-non-blocking message. Any hook in this project (or built for it in the
+future) intended to warn without blocking must exit non-zero when it has something
+to report — `check-missing-spec.sh` and `check-tsc.sh` had this exact bug from the
+day they were built, invisible until the first genuinely hook-active test session
+happened to trigger both conditions in the same run. When adding any new "warn, don't
+block" hook going forward, verify its exit code choice against this explicitly rather
+than assuming exit 0 is the safe default — for a pure warning, it's the wrong one.
 
 1. **Upgrade Node on the test machine to at least v22.22.3 (or v24.15+/v26+).** This is
    now the clear #1 blocker, confirmed twice over (this sandbox, then the user's real
