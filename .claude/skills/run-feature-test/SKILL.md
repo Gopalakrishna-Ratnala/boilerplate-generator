@@ -90,10 +90,15 @@ asking someone is already made below:
 - **Add form**: a small form with two fields — `name` (text, required) and `price`
   (number, required, must be greater than 0). Toggle its visibility with a simple
   signal boolean and a button (e.g. "+ Add Product" / "Cancel") — don't add routing or
-  a modal for this, just conditionally rendered markup (`@if`). Use this project's
-  actual `Forms` guidance (Reactive Forms, built-in validators) — not template-driven
-  forms. On submit with a valid form, add the new product to the top of the list and
-  close the form.
+  a modal for this, just conditionally rendered markup (`@if`). **Use whichever forms
+  approach this specific generated project's `.claude/rules/angular.md` actually
+  documents** — check that file rather than assuming: it will say Signal Forms
+  (`@angular/forms/signals`) for Angular 21+ targets (which is most assignments below,
+  since "latest" resolves to 21+), or Reactive Forms for v19/v20 targets. Do not
+  default to Reactive Forms without checking — that would be wrong for the majority of
+  these assignments now that Signal Forms is this project's actual v21+ default. On
+  submit with a valid form, add the new product to the top of the list and close the
+  form.
 - **Styling**: if this project has a `styling` bundle other than `none` (Material,
   PrimeNG, or Tailwind), use its actual components/utilities for this feature,
   following that bundle's own rule file. If `styling` is `none`, write plain,
@@ -119,8 +124,12 @@ Capture the real pass/fail and any real error output for each.
 ## Step 6 — Write the report yourself, fully filled in
 
 Copy `test-reports/TEMPLATE.md` (in the generator repo clone) to
-`test-reports/tester-<N>-<short-bundle-description>.md` and fill in every section
-based on what actually happened during Steps 3–5.
+`test-reports/tester-<N>-<short-bundle-description>-<unix-timestamp>.md` — **include a
+timestamp suffix** (e.g. `date +%s`), not just the tester number. This is deliberate:
+if whoever's coordinating accidentally gives two people the same number, a timestamp
+suffix means they still write two different files instead of silently colliding on one
+— cheap insurance against a human mistake, not just a technical one. Fill in every
+section based on what actually happened during Steps 3–5.
 
 **Critical: include the actual code, not just a summary.** Your own self-assessment of
 whether the feature follows this project's rules is not sufficient on its own — the
@@ -140,10 +149,28 @@ in Step 1.
 
 ```bash
 cd boilerplate-generator
-git add test-reports/tester-<N>-<short-bundle-description>.md
+git add test-reports/tester-<N>-<short-bundle-description>-<timestamp>.md
 git commit -m "test-report: tester <N> (<short bundle description>)"
-git pull --rebase
-git push
+```
+
+**Push with retries — a single `pull --rebase` + `push` isn't enough with several
+people genuinely pushing around the same time.** Attempt this up to 5 times before
+giving up:
+```bash
+for i in 1 2 3 4 5; do
+  git pull --rebase && git push && break
+  echo "Push attempt $i failed (likely a race with another tester's push) — retrying..."
+  sleep $((RANDOM % 5 + 1))
+done
+```
+The random short sleep between attempts is deliberate — if two people's retry loops
+are both firing on a fixed interval, they can keep losing to each other indefinitely;
+a small random jitter breaks that pattern. If all 5 attempts genuinely fail, don't ask
+a question — note in the report that the push failed after 5 attempts (this itself is
+useful information) and leave the committed-but-unpushed report locally so it isn't
+lost; whoever's coordinating can push it manually afterward.
+
+```bash
 rm -rf /tmp/feature-test-<N>
 ```
 

@@ -55,7 +55,10 @@ replacement for it.
       the same file
 - [ ] State updates are immutable (`.update(list => [...])`, not `.push()`)
 - [ ] No non-trivial method calls directly in template expressions
-- [ ] Forms use Reactive Forms + built-in validators, not template-driven forms
+- [ ] Forms use whichever approach this project's `.claude/rules/angular.md` actually
+      documents (Signal Forms for Angular 21+ targets — most projects now, since
+      "latest" resolves to 21+ — or Reactive Forms for v19/v20), not template-driven
+      forms, and not the other approach by mistake
 
 **Accessibility (`accessibility.md`)**
 - [ ] No `<div>`/`<span>` given `(click)`/`tabindex` instead of a real `<button>`

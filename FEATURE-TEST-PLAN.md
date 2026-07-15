@@ -97,21 +97,34 @@ the real guardrails, not a scripted walkthrough.
 
 ## Step 4 — Write your report and push it
 
-Copy `test-reports/TEMPLATE.md` to `test-reports/tester-<your-number>-<short-bundle-name>.md`
-(e.g. `test-reports/tester-2-oauth-material.md`), fill it in — **including the
-"Generated code" section, which is the most important part of the report**: paste the
-full content of every new/changed file, not a summary. Your own read of "this looks
-compliant" isn't enough on its own — the central-brain session needs the actual code
-to independently verify against the real rule files, since it's easy to miss your own
-subtle rule violations when self-assessing. Then:
+Copy `test-reports/TEMPLATE.md` to
+`test-reports/tester-<your-number>-<short-bundle-name>-<unix-timestamp>.md` (e.g.
+`test-reports/tester-2-oauth-material-1731600000.md`, timestamp via `date +%s`) —
+**include the timestamp, not just your number**: if two people accidentally get told
+the same number, this stops that from becoming a real file collision. Fill it in —
+**including the "Generated code" section, which is the most important part of the
+report**: paste the full content of every new/changed file, not a summary. Your own
+read of "this looks compliant" isn't enough on its own — the central-brain session
+needs the actual code to independently verify against the real rule files, since it's
+easy to miss your own subtle rule violations when self-assessing. Then:
 
 ```bash
 cd boilerplate-generator   # back in the CLONE, not your generated test project
-git add test-reports/tester-<your-number>-<short-bundle-name>.md
+git add test-reports/tester-<your-number>-<short-bundle-name>-<timestamp>.md
 git commit -m "test-report: tester <your-number> (<bundle summary>)"
-git pull --rebase
-git push
 ```
+
+**Push with retries** — with several people pushing around the same time, a single
+`pull --rebase` + `push` attempt can lose a race. Retry a few times before giving up:
+```bash
+for i in 1 2 3 4 5; do
+  git pull --rebase && git push && break
+  echo "Push attempt $i failed — probably a race with someone else's push, retrying..."
+  sleep $((RANDOM % 5 + 1))
+done
+```
+If all 5 attempts fail, don't panic — your report is safely committed locally, just
+not pushed yet. Try again in a minute, or flag it to whoever's coordinating.
 
 **Don't touch anything outside `test-reports/your-own-file.md`.** If you spot what
 looks like a real generator bug, describe it fully in your report rather than fixing
