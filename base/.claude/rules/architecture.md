@@ -59,6 +59,7 @@ Rules:
 | New guard | `core/guards/` — only if genuinely app-wide |
 | New interceptor | `core/interceptors/` — only if genuinely app-wide |
 | New API service for one feature | `features/<feature-name>/services/` |
+| New per-feature SignalStore (if `state` bundle is `ngrx-signalstore`) | `features/<feature-name>/state/<feature-name>.store.ts` — see `.claude/rules/state.md` |
 | New API service used by multiple features | `core/services/` |
 
 If a new file doesn't clearly fit one of these, stop and ask rather than guessing a new

@@ -4,29 +4,28 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-15 (session 24)
-**Status:** Two sessions since the last `CONTEXT.md` update. **Session 23** (previously
-undocumented): a real team member's first live run of `run-feature-test` hit two real
-friction points — `git`/filesystem hangs from the repo being cloned inside `~/Desktop`
-(iCloud Drive sync interference, not a generator bug) and Claude Code's own built-in
-security prompt for `cd && >` compound commands (self-inflicted by Claude's own
-defensive workaround while fighting the hang). Both fixed: `FEATURE-TEST-PLAN.md` now
-warns against cloud-synced clone locations upfront, and the skill explicitly avoids
-the `cd`+redirect pattern and `timeout` (absent on macOS by default).
-**Session 24** (this one): user shared a real client's (Maxim's) actual answers to a
-company decision-tree document and asked whether the generator actually supports what
-was requested. Found 5 real gaps by going through all 11 answers point by point, then
-— given explicit approval for full scope — built the priority ones: two new,
-fully-verified `auth` bundle options (`auth0`, `cognito`, both tested via real
-generation + manual SDK wiring + real build), a new `e2e` axis (`playwright`/`none`,
-verified including protected `playwright.config.ts`), and a new hook
-(`check-raw-tailwind-utility.sh`) closing a real gap in Tailwind's design-token
-enforcement — the existing hardcoded-color hook caught literal hex/rgb/hsl values but
-not raw Tailwind palette utility classes (`bg-blue-500`), which was Maxim's actual
-stated requirement. **Generated Maxim's real project** with the correct combination
-and added project-specific "planned for phase 2" guidance (SignalStore/i18n/auth
-migration readiness) directly to that project's own `CLAUDE.md` — deliberately
-scoped to that one project, not the shared generator, per explicit instruction.
+**Last updated:** 2026-07-15 (session 25)
+**Status:** Reviewed the first two real test reports from the parallel testing exercise
+(session 24's `run-feature-test` skill) — both exceptionally detailed, both correctly
+distinguishing real generator gaps from their own judgment calls. **Found and fixed
+the most severe bug in this project's history**: `provideHttpClient()` was never
+wired into `app.config.ts` by anything in this system, despite `basic-auth`, `rest`,
+`saml`, and `graphql` all generating code that assumes it exists — a silent runtime
+failure (`NullInjectorError`) invisible to `ng lint`, `ng build`, and every unit test,
+since tests always supply their own HttpClient testing setup. Only surfaced because a
+tester manually wired a *different*, correctly-documented bundle (PrimeNG) and
+happened to notice HttpClient was also missing while looking closely at
+`app.config.ts`. Fixed at the source via a new `wireHttpClientAndInterceptors()`
+function, using `needsHttpClient`/`httpInterceptors` manifest fields that already
+existed (uncommitted, untraced origin) but were never actually read by `generate.js`.
+Verified across 4 real scenarios (joined interceptors from two axes, a single
+interceptor from a different axis, HttpClient-needed-but-no-interceptor, and the
+correctly-skipped case). Also fixed a repeated, independently-found ambiguity in
+Signal Forms guidance (both testers separately hit the same `FormRoot`-vs-explicit-
+`submit()` question) with a concrete, verified-working code example, plus 4 smaller
+confirmed gaps (accessibility label rule, `architecture.md`'s missing `state/` row,
+`ngrx-signalstore`'s `rxMethod` availability caveat, a component-scoped-provider
+testing note).
 
 ---
 
@@ -1557,7 +1556,98 @@ note ("correctly too niche/proprietary"). No generator changes needed — the ex
 
 Full JSON validation and `generate.js` syntax check re-run clean after all changes.
 
-## 30. Where things stand — everything through session 24 done
+## 30. Two real test reports reviewed — the most severe bug in this project's history found and fixed (session 25)
+
+Reviewed `test-reports/tester-1-*.md` and `test-reports/tester-3-*.md`, the first two
+reports from the parallel testing exercise. Both were exceptional — full pasted code
+(not summaries), careful, honest self-checks, and both explicitly distinguished "I
+made a judgment call, here's why" from "this looks like a real generator gap, flagging
+for the central-brain session" exactly as `FEATURE-TEST-PLAN.md`/the skill asked.
+
+**The critical bug, found by tester 3**: `app.config.ts` ships with **no
+`provideHttpClient()` at all** — not from `base/`, not from any bundle's
+`postGenerateCommands`. But `basic-auth` generates `authInterceptor`, `rest` generates
+`errorInterceptor` and an `ApiService` that injects `HttpClient`, `saml`'s
+`AuthService` calls `HttpClient` directly, `graphql`'s Apollo `HttpLink` needs it too
+— every one of these would throw a real `NullInjectorError` the instant the app
+actually ran in a browser. **This was completely invisible to every check this
+project has ever run** — `ng lint` doesn't execute the app, `ng build` only compiles
+it, and every unit test supplies its own `provideHttpClient()`/`provideHttpClientTesting()`
+in `TestBed`, which masks the real app's `app.config.ts` being broken. Tester 3 only
+found it because they manually wired a *different* bundle (PrimeNG, whose "manual
+wiring required" note is correct and unrelated) and, while looking closely at
+`app.config.ts` to do that, noticed `HttpClient` was silently missing too.
+
+**Verified this was real, not tester error**, before touching anything: generated a
+fresh project independently and confirmed the actual `app.config.ts` content matched
+exactly what tester 3 described.
+
+**Fixed using manifest fields that already existed** (`needsHttpClient`,
+`httpInterceptors` on `basic-auth`/`rest`/`saml`/`graphql`) — found sitting in the
+working copy, fully designed and even already documented in `BUNDLE-CONTRACT.md`, but
+**uncommitted with no traceable git history**, and — critically — never actually read
+by anything in `generate.js`. The data model was already correct; the function that
+was supposed to consume it simply didn't exist yet. Wrote `wireHttpClientAndInterceptors()`:
+collects `needsHttpClient`/`httpInterceptors` across every selected bundle, and if any
+bundle needs it, prepends `provideHttpClient()` (or
+`provideHttpClient(withInterceptors([...]))` if any bundle contributed one) into
+`app.config.ts` — real, automatic wiring, not a manual-step note, since (unlike
+PrimeNG's theme choice or Auth0's domain/clientId) there's no actual per-project
+decision involved here.
+
+**Extended to the new `auth0` bundle** (built session 24) — added
+`needsHttpClient`/`httpInterceptors` for `authHttpInterceptorFn`, matching what its own
+rules file already recommended. Updated `auth0`'s, `basic-auth`'s, and `rest`'s rule
+files to state clearly that this wiring is now automatic — `auth0`'s previously said
+to register the interceptor manually, which would now be stale/duplicate advice.
+
+**Verified across 4 real scenarios**, each a full real generation:
+1. `basic-auth` + `rest` together → both interceptors correctly joined into one
+   `withInterceptors([authInterceptor, errorInterceptor])` call.
+2. `auth0` alone → `authHttpInterceptorFn` correctly wired from a completely different
+   bundle's declaration, proving the cross-axis collection actually works generally,
+   not just for the one combination that exposed the bug.
+3. `saml` alone (`needsHttpClient: true`, no interceptor) → plain `provideHttpClient()`,
+   no `withInterceptors` wrapper.
+4. `auth: none` + `data-layer: mock` (neither needs it) → correctly skipped entirely,
+   `app.config.ts` untouched.
+
+All 4 confirmed via real `ng lint` and `ng build`, not just inspecting the generated
+`app.config.ts` in isolation.
+
+**A second, independently-corroborated finding**: both testers, working on completely
+different bundle combinations, separately hit the identical ambiguity — whether
+Signal Forms' `[formRoot]` directive should be used together with an explicit
+`submit()` call, or instead of one. Both independently chose the same conservative
+resolution (explicit `(submit)` handler + `event.preventDefault()` + `submit(...)`,
+skip `[formRoot]` entirely) and both said so worked cleanly. Two independent testers
+converging on the same answer to the same open question, on different bundle
+combinations, is a strong signal — resolved definitively in `generate.js`'s
+`computeFormsGuidance()` with a concrete, verified-working code example (both the
+`.ts` and `.html` shape), not just narrative guidance.
+
+**4 smaller confirmed gaps, each fixed**:
+- `accessibility.md`: a `placeholder` attribute alone is not a sufficient accessible
+  name for an `<input>` — found by independently reviewing tester 1's actual template
+  code (a search input with only a `placeholder`, no label/`aria-label`), not
+  something either tester flagged themselves.
+- `architecture.md`: the "where new code goes" table had no row for a per-feature
+  SignalStore's location — tester 3 found `state.md`'s own guidance unambiguous enough
+  to not cause a wrong decision, but flagged the omission; added the row.
+- `bundles/state/ngrx-signalstore/rules/state.md`: this project's pinned
+  `@ngrx/signals` version doesn't ship an `rxjs-interop` subpath (`rxMethod()`
+  unavailable) — tester 3 checked `node_modules` directly rather than assuming, found
+  a plain `.subscribe()` call inside `withMethods` is a valid fallback; documented.
+- `angular.md`: a component-scoped provider (not `providedIn: 'root'`) needs the same
+  provider declared again in `TestBed.configureTestingModule` — expected Angular DI
+  behavior, not a bug, but tester 1 had to work it out via trial and error; documented
+  so the next tester doesn't have to.
+
+Full JSON validation and `generate.js` syntax check re-run clean after all changes —
+including one real syntax risk specifically checked given the new Signal Forms code
+example is a JS template literal containing nested backtick-delimited code blocks.
+
+## 31. Where things stand — everything through session 25 done
 
 **Permanent addition to this project's testing discipline, effective immediately**:
 **every full validation pass must include a real `ng build`, not just `ng lint` and
@@ -1584,6 +1674,19 @@ only against v21/22's output format in earlier sessions, and both silently broke
 v20's differently-formatted (but equally valid) schematic output — found only because
 v20 was actually generated and built this session. A fix that works on one version's
 generated output is not proven to work on another's without testing it.
+
+**Fourth permanent lesson, from session 25**: **`ng lint` + `ng build` passing is
+still not sufficient evidence a generated app actually works at runtime** — the
+missing-`provideHttpClient()` bug proves this at a level beyond the earlier
+`environments/` lesson. That bug was invisible to lint (nothing to lint), invisible to
+build (TypeScript compiles fine regardless of what's actually in the DI container at
+runtime), and invisible to every unit test (tests always supply their own
+`provideHttpClient()`/`provideHttpClientTesting()`, which masks the real
+`app.config.ts` being broken). The only thing that would have caught this is actually
+running the app in a browser and clicking something that makes an HTTP call — which
+is exactly why the parallel feature-building exercise (not just structural
+generation-tests) exists, and exactly the kind of bug this project's earlier
+lint/build-only validation could never have found on its own.
 
 1. **Upgrade Node on the test machine to at least v22.22.3 (or v24.15+/v26+).** This is
    now the clear #1 blocker, confirmed twice over (this sandbox, then the user's real

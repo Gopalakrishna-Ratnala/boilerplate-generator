@@ -6,6 +6,10 @@ This project talks to a REST backend. A shared `ApiService` wraps `HttpClient` w
 base URL and a consistent `get/post/put/patch/delete` surface. A shared
 `errorInterceptor` normalizes HTTP errors in one place.
 
+**`provideHttpClient(withInterceptors([..., errorInterceptor]))` is already wired in
+`app.config.ts`** by the generator itself — this is a real, working setup, not
+something to add yourself. Don't add a second `provideHttpClient(...)` call.
+
 ## What the AI agent may do
 
 - Inject `ApiService` in a feature service and call `apiService.get<User[]>('/users')`,

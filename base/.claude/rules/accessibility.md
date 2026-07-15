@@ -14,6 +14,11 @@ structural patterns below.
 
 ## What the AI agent must do
 
+- **Every `<input>` needs a real accessible name** — a `<label for="...">`, an
+  `aria-label`, or `aria-labelledby`. A `placeholder` attribute alone is **not**
+  sufficient (it disappears once the user types, and isn't reliably exposed as the
+  field's name to screen readers) — this applies just as much to a search/filter
+  input as to a labeled form field, not just the latter.
 - **ARIA attributes**: bind them like any other attribute — `[aria-label]="myLabel"` for
   dynamic values, plain `aria-label="Save document"` for static ones. Use property
   binding (not string interpolation) for anything that needs to stay in sync with

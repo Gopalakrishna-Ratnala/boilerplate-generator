@@ -151,6 +151,12 @@
 - Prefer testing through the real service (`provideHttpClient()` + the testing backend)
   over hand-mocking the service itself — this exercises the actual interceptor chain
   (e.g. the auth/error interceptors from this project's bundles) rather than bypassing it.
+- **Testing a component with a component-scoped provider** (e.g. a state service listed
+  in that component's own `providers: [...]` array, not `providedIn: 'root'`): the test
+  needs that same provider declared in `TestBed.configureTestingModule`'s own
+  `providers` array too — the test doesn't automatically inherit the component's
+  scoped instance. This is expected Angular DI behavior, not a bug to work around; just
+  don't be surprised if a component-scoped provider needs listing in both places.
 - **If this project's `styling` bundle is `material` (or any CDK-based component)**:
   prefer testing component interactions through its official **component harness**
   (`@angular/cdk/testing`, e.g. `TestbedHarnessEnvironment.loader(fixture)` then

@@ -423,6 +423,78 @@ function copyDirRecursive(src, dest) {
   }
 }
 
+function wireHttpClientAndInterceptors(projectDir, manifests) {
+  // CRITICAL FIX, found via a real tester's report (session 24, test-reports/tester-3):
+  // provideHttpClient() was NEVER added to app.config.ts by anything in this system —
+  // not base, not any bundle's postGenerateCommands. But basic-auth/rest/graphql/saml
+  // all generate code (ApiService, AuthService, interceptors) that assumes HttpClient
+  // is provided. Every project using one of these would throw a real
+  // NullInjectorError the moment it actually ran in a browser — completely invisible
+  // to `ng lint`, `ng build`, and unit tests, since tests always supply their own
+  // provideHttpClient()/provideHttpClientTesting() in TestBed, masking the real app's
+  // brokenness. Only found because a tester manually wired PrimeNG (a *different*,
+  // correctly-documented "manual wiring required" bundle) and happened to notice
+  // HttpClient was ALSO silently missing while looking closely at app.config.ts.
+  //
+  // The `needsHttpClient`/`httpInterceptors` manifest fields already existed on
+  // several bundles (basic-auth, rest, saml, graphql) before this fix — the data model
+  // was already correct, but nothing in generate.js ever actually read it. This
+  // function is what was missing, not new bundle-level design.
+  const needsHttpClient = AXES.some((axis) => manifests[axis].needsHttpClient);
+  if (!needsHttpClient) return;
+
+  const interceptors = [];
+  for (const axis of AXES) {
+    if (manifests[axis].httpInterceptors) {
+      interceptors.push(...manifests[axis].httpInterceptors);
+    }
+  }
+
+  const appConfigPath = path.join(projectDir, 'src', 'app', 'app.config.ts');
+  if (!fs.existsSync(appConfigPath)) {
+    warn('app.config.ts not found — skipping HttpClient wiring. Flag for review.');
+    return;
+  }
+
+  let content = fs.readFileSync(appConfigPath, 'utf8');
+
+  // Idempotency guard — if this has somehow already been wired (shouldn't happen in
+  // the normal pipeline, but defensive), don't double-wire it.
+  if (content.includes('provideHttpClient')) {
+    return;
+  }
+
+  const httpClientImport =
+    interceptors.length > 0
+      ? "import { provideHttpClient, withInterceptors } from '@angular/common/http';\n"
+      : "import { provideHttpClient } from '@angular/common/http';\n";
+  const interceptorImports = interceptors.map((i) => `import { ${i.importName} } from '${i.importFrom}';\n`).join('');
+
+  // Prepend new imports at the very top — always valid regardless of whatever import
+  // structure already exists in the file (single-line, multi-group, etc.).
+  content = httpClientImport + interceptorImports + content;
+
+  const providerCall =
+    interceptors.length > 0
+      ? `provideHttpClient(withInterceptors([${interceptors.map((i) => i.importName).join(', ')}])),`
+      : 'provideHttpClient(),';
+
+  const providersMatch = content.match(/providers:\s*\[/);
+  if (!providersMatch) {
+    warn('Could not find a providers array in app.config.ts — skipping HttpClient wiring. Flag for review.');
+    return;
+  }
+  const insertPos = providersMatch.index + providersMatch[0].length;
+  content = content.slice(0, insertPos) + `\n    ${providerCall}` + content.slice(insertPos);
+
+  fs.writeFileSync(appConfigPath, content);
+  info(
+    `   ✓ Wired provideHttpClient()${
+      interceptors.length ? ' with interceptors: ' + interceptors.map((i) => i.importName).join(', ') : ''
+    } into app.config.ts (was completely missing before this fix — see CONTEXT.md).`
+  );
+}
+
 function applyBase(projectDir, placeholderValues) {
   info('\n🛡  Applying base .claude guardrail layer...');
 
@@ -932,7 +1004,35 @@ function main() {
 - Use \`submit(formSignal, async (form) => { ... })\` (imported from \`@angular/forms/signals\`) to handle submission — it only invokes the callback when the form is valid, and manages the \`submitting\` state automatically. Don't hand-roll a submit guard checking validity yourself.
 - A \`FieldTree\` node (e.g. \`myForm.email\`) is the *structure* — call it as a function (\`myForm.email()\`) to read its *state* signals (\`value\`, \`valid\`, \`touched\`, \`dirty\`, \`errors\`). Don't confuse the two.
 - Do not mix imports from \`@angular/forms\` (Reactive/Template-driven) into a Signal Forms component unless deliberately using \`compatForm\` for an incremental migration — Signal Forms is a from-scratch reimplementation, not an extension of Reactive Forms.
-- **Custom form controls**: implement Signal Forms' own custom-control pattern (not \`ControlValueAccessor\`, which is the Reactive Forms mechanism) — if unsure of the exact current pattern, use the Angular CLI MCP server's \`search_documentation\` tool rather than guessing, since this is a newer, still-evolving API surface.`;
+- **Custom form controls**: implement Signal Forms' own custom-control pattern (not \`ControlValueAccessor\`, which is the Reactive Forms mechanism) — if unsure of the exact current pattern, use the Angular CLI MCP server's \`search_documentation\` tool rather than guessing, since this is a newer, still-evolving API surface.
+- **Submission handler pattern (resolves a real ambiguity found via testing): use an
+  explicit \`(submit)\` handler that calls \`event.preventDefault()\` then \`submit(...)\`
+  — don't use the \`[formRoot]\` directive together with a separate explicit \`submit()\`
+  call** (the interaction between the two is undocumented and risks a double-submit).
+  Concrete, verified-working pattern:
+  \`\`\`ts
+  protected readonly myForm = form(this.draftModel, (path) => {
+    required(path.name, { message: 'Name is required' });
+  });
+
+  protected onSubmit(event: Event): void {
+    event.preventDefault();
+    submit(this.myForm, async () => {
+      // ... perform the action; return undefined on success, or a server-error
+      // object shaped for the form's schema on failure ...
+      return undefined;
+    });
+  }
+  \`\`\`
+  \`\`\`html
+  <form (submit)="onSubmit($event)">
+    <input [formField]="myForm.name" />
+    @if (myForm.name().touched() && myForm.name().errors().length) {
+      <span class="error">{{ myForm.name().errors()[0].message }}</span>
+    }
+    <button type="submit">Save</button>
+  </form>
+  \`\`\``;
     }
     return `- Prefer Reactive Forms over Template-driven forms for anything beyond a single trivial input. (Signal Forms doesn't exist yet on Angular ${major} — it was introduced at v21 — so this isn't a choice being made here, just a fact about what's available.)
 - **Validators**: prefer Angular's built-in validators (\`Validators.required\`, \`Validators.email\`, \`Validators.pattern\`, etc.) composed via \`Validators.compose()\` over hand-writing regex/logic that duplicates one. Write a custom validator function only for genuinely app-specific rules, and keep it a pure function (input value in, \`ValidationErrors | null\` out) — no side effects, no injected dependencies unless the validator genuinely needs one (in which case use a factory function returning the validator, not a class).
@@ -1006,6 +1106,10 @@ function main() {
   const seenFiles = new Map();
   for (const axis of AXES) {
     applyBundle(projectDir, axis, selection[axis], seenFiles);
+  }
+
+  if (!dryRun) {
+    wireHttpClientAndInterceptors(projectDir, manifests);
   }
 
   runPostGenerateCommands(projectDir, manifests, selection, dryRun);

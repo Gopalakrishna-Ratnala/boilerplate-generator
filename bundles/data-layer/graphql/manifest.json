@@ -3,5 +3,6 @@
   "option": "graphql",
   "label": "GraphQL",
   "description": "Frontend talks to a GraphQL backend via Apollo Angular.",
-  "claudeMdSummaryLine": "Data layer: GraphQL (Apollo Angular)"
+  "claudeMdSummaryLine": "Data layer: GraphQL (Apollo Angular)",
+  "needsHttpClient": true
 }

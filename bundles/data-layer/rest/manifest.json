@@ -3,5 +3,9 @@
   "option": "rest",
   "label": "REST API",
   "description": "Frontend talks to a REST backend via HttpClient, with a shared base API service and centralized error handling.",
-  "claudeMdSummaryLine": "Data layer: REST API (HttpClient, shared ApiService base)"
+  "claudeMdSummaryLine": "Data layer: REST API (HttpClient, shared ApiService base)",
+  "needsHttpClient": true,
+  "httpInterceptors": [
+    { "importName": "errorInterceptor", "importFrom": "./core/interceptors/error.interceptor" }
+  ]
 }

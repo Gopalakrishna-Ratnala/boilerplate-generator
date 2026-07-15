@@ -28,6 +28,13 @@ go through `patchState()`, never direct mutation.
   `withMethods`.
 - Inject the feature's own services (e.g. an `ApiService`-based feature service) inside
   `withMethods` via `inject()`, following the same pattern as any other Angular service.
+- **`rxMethod()` may not be available** — found via testing that this project's pinned
+  `@ngrx/signals` version doesn't ship an `rxjs-interop` subpath export. Check
+  `node_modules/@ngrx/signals` directly before assuming `rxMethod()` is available (some
+  SignalStore examples online assume it). If it's not there, a plain
+  `someService.getData().subscribe(result => patchState(store, { ... }))` call inside
+  `withMethods` is a valid, documented-elsewhere fallback pattern — not a workaround to
+  be embarrassed about.
 
 ## What the AI agent must NOT do
 

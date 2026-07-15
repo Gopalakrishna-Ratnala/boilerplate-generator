@@ -7,6 +7,10 @@ backend returns a JWT on successful login. The token is stored client-side and a
 to outgoing API requests automatically via an HTTP interceptor. Routes requiring login
 are protected by a functional route guard.
 
+**`provideHttpClient(withInterceptors([authInterceptor, ...]))` is already wired in
+`app.config.ts`** by the generator itself — this is a real, working setup, not
+something to add yourself. Don't add a second `provideHttpClient(...)` call.
+
 ## What the AI agent may do
 
 - Use `inject(AuthService)` in any component/service that needs to know if a user is

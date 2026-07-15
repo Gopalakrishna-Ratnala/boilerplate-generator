@@ -3,5 +3,9 @@
   "option": "basic-auth",
   "label": "Basic email/password",
   "description": "Self-managed users, login against the project's own backend, JWT stored client-side.",
-  "claudeMdSummaryLine": "Auth: basic email/password (JWT, self-managed backend)"
+  "claudeMdSummaryLine": "Auth: basic email/password (JWT, self-managed backend)",
+  "needsHttpClient": true,
+  "httpInterceptors": [
+    { "importName": "authInterceptor", "importFrom": "./core/interceptors/auth.interceptor" }
+  ]
 }

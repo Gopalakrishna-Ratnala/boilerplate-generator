@@ -62,6 +62,21 @@ combination — same "flag it, don't generate something broken" principle as `re
 Omit both fields when an option has no real version constraint (true for anything
 schematic-driven via `ng add`, which self-resolves a compatible version).
 
+`needsHttpClient` (optional boolean) and `httpInterceptors` (optional array of
+`{ "importName": "...", "importFrom": "..." }`) exist because of a real,
+previously-undetected bug (found via actual feature-building, not structural
+validation): several bundles generate code that assumes `HttpClient` is available
+(`inject(HttpClient)` in a service, an interceptor file) but nothing ever actually
+called `provideHttpClient()` in `app.config.ts` — a silent *runtime* failure invisible
+to `ng lint`/`ng build`. Set `needsHttpClient: true` on any bundle whose files directly
+inject `HttpClient` or depend on something that does (Apollo Angular's `HttpLink`, for
+instance). List an entry in `httpInterceptors` for any interceptor file the bundle
+ships that needs registering. `generate.js` collects these across every selected
+bundle and assembles exactly one combined `provideHttpClient(withInterceptors([...]))`
+call in `app.config.ts` if any bundle needs it — this is real, automatic wiring, not a
+"manual step" note, since there's no per-project decision involved (unlike PrimeNG's
+theme choice or Auth0's domain/clientId, which genuinely can't be automated).
+
 ## Rules for every `<axis>.md` inside a bundle option
 
 1. Follows the same section order every time (see `auth/oauth-sso/rules/auth.md` as the
