@@ -26,7 +26,16 @@
 
 ## Step 0 — Before you start (every tester)
 
+**Clone somewhere OUTSIDE any cloud-synced folder** — not inside `~/Desktop`,
+`~/Documents`, Dropbox, OneDrive, Google Drive, or anything similar. On Mac
+specifically, `~/Desktop` and `~/Documents` are commonly synced by iCloud Drive, which
+is a confirmed, real cause of `git`/filesystem commands mysteriously hanging for
+minutes (found during this exercise's own first live run) — not a generator bug, but
+it will waste your time and derail an otherwise-autonomous session. Use something like
+`~/dev`, `~/projects`, or `~/code` instead:
+
 ```bash
+mkdir -p ~/dev && cd ~/dev
 git clone https://github.com/Gopalakrishna-Ratnala/boilerplate-generator.git
 cd boilerplate-generator
 node --version   # note this down — you'll need it in your report

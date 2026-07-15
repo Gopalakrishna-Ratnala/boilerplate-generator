@@ -20,6 +20,24 @@ The only acceptable reason to stop early is a hard, unrecoverable error (e.g.
 question: write what happened into the report as-is, commit and push that report, and
 end.
 
+**Two specific things that have caused real friction in practice, avoid both:**
+- **Do not combine `cd <path> && <command> > <file>` in one compound command.**
+  Claude Code's own built-in safety check requires manual approval for this exact
+  pattern (guarding against path-resolution tricks), which defeats the zero-questions
+  design here. If you need to redirect output, do it in a separate step from any `cd`,
+  or just let the command's normal output come back through the tool call rather than
+  redirecting to a file at all — that's simpler and avoids the prompt entirely.
+- **Do not rely on the `timeout` command.** It does not exist by default on macOS
+  (only on Linux/GNU coreutils) and will fail with "command not found." If a command
+  seems to be hanging, the far more likely cause is the repository being cloned inside
+  a cloud-synced folder (iCloud Drive's "Desktop & Documents" sync, Dropbox, OneDrive,
+  etc.) — `git`/filesystem operations can hang for minutes there for reasons that have
+  nothing to do with this project. If you observe a `git`/`node`/`npm` command hang for
+  an unreasonably long time, note that in the report as a likely environment issue
+  (suggest re-cloning outside any cloud-synced folder) rather than fighting it with
+  workarounds — don't spend the session's effort defensively working around a slow
+  filesystem.
+
 ## Step 1 — Get the tester number
 
 The human invoking this will give you a number 1–6 (e.g. "run feature test 3" or
