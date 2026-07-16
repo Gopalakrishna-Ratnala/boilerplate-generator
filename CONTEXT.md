@@ -4,21 +4,23 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-16 (session 30)
-**Status:** Added a new `data-layer` bundle option: `json-server` — a real local fake
-REST API (json-server, pinned to stable `0.17.4`, not its unstable `latest` v1-beta
-npm tag which lacks `--routes` support) serving genuine HTTP responses from a
-`db.json` fixture, distinct from the existing `mock` option (in-memory only, no real
-HTTP). Required building a new generator capability first: no bundle had ever needed
-to add its own npm script before, so extended the bundle contract with an optional
-`scripts.fragment.json` (merges into `package.json`'s `scripts`, never overwrites an
-existing script of the same name). Reused the `rest` bundle's proven
-`ApiService`/`error.interceptor.ts` pattern since json-server responds exactly like a
-real REST backend, plus a `routes.json` rewrite so the URL shape matches this
-project's existing `apiBaseUrl` convention (`/api` prefix). Verified with a real,
-complete end-to-end test — not just files existing, but actually starting
-json-server and making real HTTP calls through the `/api` rewrite, confirming
-genuine data returned exactly matching what `ApiService` would call in practice.
+**Last updated:** 2026-07-16 (session 31)
+**Status:** User asked for a 7th test report, following the exact same format as
+testers 1-6, but this time run directly by the central-brain session as a final
+confirmation of `json-server` in genuine feature-building use (not just the
+lint/build check from session 30). Generated Maxim's real combination with
+`json-server`, wrote a real "Products" feature (model, service, component, spec)
+against it, made one real mistake along the way (wrong selector prefix) and let
+`ng lint` catch it rather than fixing it quietly beforehand, then verified
+everything for real: `ng lint`/`ng build`/`ng test` all passing, and — the actual
+point of the exercise — **actually started `json-server` and confirmed via a real
+`curl` call that the exact endpoint the new feature calls returns the real seeded
+data**. Documented honestly in the report that this session cannot test hook
+enforcement (its tool calls don't route through Claude Code's `PreToolUse`/
+`PostToolUse` interception the way a real developer's fresh CLI session does, per
+session 26's finding) — this report confirms generation and runtime correctness,
+not hook enforcement, and says so explicitly rather than implying a false
+equivalence with testers 1-6's reports.
 
 ---
 
@@ -1982,7 +1984,52 @@ server is more than what's needed.
 Full JSON validation, `generate.js` syntax check, and the skill's frontmatter all
 re-verified clean after all changes.
 
-## 36. Where things stand — everything through session 30 done
+## 36. Seventh test report — central-brain's own real, hands-on confirmation of `json-server` (session 31)
+
+Added `test-reports/tester-7-central-brain-json-server-final-confirmation-*.md`,
+following the exact same template as testers 1-6. Session 30 confirmed `json-server`
+generates correctly and `ng lint`/`ng build` pass — but never had a real feature
+actually consume data from it. This report closes that gap.
+
+**Built a real, small "Products" feature against `json-server`** — a model, a
+`ProductsService` calling `ApiService.get('products')`, and a `ProductsListComponent`
+(inline template, per this project's own convention) rendering the result via
+`toSignal()`. Extended `db.json` with a realistic 3-item `products` array alongside
+the generator's default `examples` seed.
+
+**One real mistake made and deliberately left in the report rather than quietly
+fixed**: the component was first written with the generic `app-products-list`
+selector, not this project's actual configured prefix. `ng lint` correctly caught it
+(`@angular-eslint/component-selector`) — included as honest confirmation that the
+generator's tightened lint rules work in practice, not just that a mistake happened.
+
+**The actual point of the exercise**: after `ng lint`/`ng build`/`ng test` all
+passed (3/3 tests, including a real spec using `provideHttpClientTesting()` +
+`HttpTestingController`), **actually started `json-server` for real and made a real
+`curl` call to the exact endpoint the new feature calls** —
+`http://localhost:3000/api/products` — and confirmed the real seeded data comes
+back correctly. This is meaningfully more thorough than "the bundle generates
+correctly," which is all session 30 had confirmed.
+
+**A genuinely useful side-confirmation, found empirically rather than assumed**:
+the real spec test's `httpTesting.expectOne('http://localhost:3000/api/products')`
+only passed because `ng test` actually resolves `environment.development.ts`
+(`localhost:3000`), not the production `environment.ts` (`https://api.example.com`)
+— if this project's environment file-replacement behaved differently, the test would
+have failed outright with no matching request found. Recorded as a confirmed fact
+about this project's test configuration, not a guess.
+
+**An explicit, honest limitation stated in the report itself**: this session's tool
+calls are plain sandbox shell commands, not routed through Claude Code's own
+`PreToolUse`/`PostToolUse` hook interception — meaning, per session 26's finding,
+this report cannot claim to have tested hook enforcement for `json-server`, only
+generation and runtime correctness. The report says this explicitly rather than
+implying false equivalence with testers 1-6, whose Phase B sessions were genuinely
+hook-active. Genuine hook-enforcement confirmation for `json-server` specifically
+still requires a real team member's fresh Claude Code session started inside a
+`json-server`-generated project.
+
+## 37. Where things stand — everything through session 31 done
 
 **Permanent addition to this project's testing discipline, effective immediately**:
 **every full validation pass must include a real `ng build`, not just `ng lint` and
