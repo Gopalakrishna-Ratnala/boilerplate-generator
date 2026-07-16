@@ -8,6 +8,11 @@
 # (a click handler, a manually-added tabindex) instead of a real <button>/<a>, which
 # loses keyboard/focus/ARIA behavior a native element gets for free. This hook checks
 # for exactly that narrower, real problem.
+#
+# Extended to also scan .ts files: found via the same class of gap as
+# check-hardcoded-colors.sh (session 29) — Angular templates can live inline inside a
+# .ts file's `template:` string, not just in a separate .html file, and this project's
+# own components use that pattern. Checking only *.html missed that entirely.
 
 set -uo pipefail
 
@@ -16,7 +21,7 @@ TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 
 case "$FILE_PATH" in
-  *.html) ;;
+  *.html|*.ts) ;;
   *) exit 0 ;;
 esac
 

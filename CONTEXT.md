@@ -1908,6 +1908,23 @@ afterward.
 
 Full JSON validation and `generate.js` syntax check re-run clean after all changes.
 
+**Addendum, same session**: the user asked a plain clarifying question — why don't
+all hooks check the same set of file extensions (`.html`, `.ts`, `.scss`,
+`.spec.ts`)? Answering it properly meant re-auditing every hook's extension match
+rather than just asserting the differences were all intentional, and that check
+turned up one more real instance of the exact same class of gap just fixed for
+`check-hardcoded-colors.sh`: **`check-interactive-div-span.sh` only ever matched
+`*.html`, never `*.ts`** — meaning a `<div (click)="...">` written inside an inline
+`template:` string (this project's own components use that pattern) was completely
+invisible to it, same root cause as the color-detection gap. Fixed by adding `.ts`
+to its matched extensions, verified with 4 real cases (interactive div inside an
+inline `.ts` template now blocks; a plain non-interactive div in `.ts` still
+allows; the existing `.html` case still works; an unrelated service `.ts` file
+still allows) and confirmed no false positives across the `rbac` bundle's real
+files. `check-hardcoded-api-url.sh`'s narrower `*.service.ts`-only match was
+re-confirmed correct as-is — hardcoded API URLs are genuinely a service-layer-only
+concern, not a template concern, so no equivalent gap exists there.
+
 ## 35. Where things stand — everything through session 29 done
 
 **Permanent addition to this project's testing discipline, effective immediately**:
