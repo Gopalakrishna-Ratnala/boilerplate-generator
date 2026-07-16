@@ -655,6 +655,24 @@ function applyBundle(projectDir, axis, option, seenFiles) {
     fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
   }
 
+  // scripts.fragment.json -> package.json's "scripts" section. New capability, added
+  // for the json-server data-layer bundle (needs its own npm script to actually start
+  // the fake API) — no prior bundle needed this, so it didn't exist until now.
+  const scriptsFragmentPath = path.join(bundleDir, 'scripts.fragment.json');
+  if (fs.existsSync(scriptsFragmentPath)) {
+    const fragment = JSON.parse(fs.readFileSync(scriptsFragmentPath, 'utf8'));
+    const pkgPath = path.join(projectDir, 'package.json');
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+    for (const [scriptName, command] of Object.entries(fragment)) {
+      if (pkg.scripts && pkg.scripts[scriptName]) {
+        warn(`   ⚠ Bundle ${bundleLabel} wants to add npm script "${scriptName}", but it already exists — skipping to avoid overwriting. Flag for review.`);
+        continue;
+      }
+      pkg.scripts = { ...(pkg.scripts || {}), [scriptName]: command };
+    }
+    fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+  }
+
   // settings.fragment.json -> .claude/settings.json (merge permission arrays only)
   const settingsFragmentPath = path.join(bundleDir, 'settings.fragment.json');
   if (fs.existsSync(settingsFragmentPath)) {

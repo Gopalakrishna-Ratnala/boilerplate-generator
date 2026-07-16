@@ -7,6 +7,11 @@
 bundles/<axis>/<option>/
 ├── manifest.json            # metadata generate.js reads to know what to do with this bundle
 ├── deps.fragment.json       # dependencies/devDependencies to merge into package.json
+├── scripts.fragment.json    # OPTIONAL — npm "scripts" entries to merge into package.json.
+│                            # Only add this if the bundle genuinely needs its own npm
+│                            # script (e.g. starting a local fake-API server) — most
+│                            # bundles don't need this at all. Never overwrites an
+│                            # existing script of the same name; skips with a warning.
 ├── settings.fragment.json   # additional permission/deny rules to merge into .claude/settings.json
 ├── rules/
 │   └── <axis>.md            # copied to .claude/rules/<axis>.md in the generated repo

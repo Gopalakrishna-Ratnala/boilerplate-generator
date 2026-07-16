@@ -108,14 +108,21 @@ generating something that has to be un-done later.*
 ### Q2 — Data layer → `--data-layer`
 
 **Case 1 (technical):** "How will the frontend get its data — REST API, GraphQL, or does
-it need real-time/live updates (WebSockets)? Or is there no backend yet?"
+it need real-time/live updates (WebSockets)? Or is there no backend yet — and if so, do
+you want a real local fake API (json-server) or just static in-memory data?"
 - REST API → `rest`
 - GraphQL → `graphql`
 - Real-time (WebSocket live data) → `realtime`
-- Static/mock data only (no backend yet) → `mock`
+- No backend yet, but want a real local fake REST API to develop against (real HTTP
+  calls, real network errors, a `db.json` file you can add resources to) → `json-server`
+- No backend yet, simplest possible static/in-memory data, no real HTTP at all → `mock`
 
 **Case 2 (non-technical):** "Where does the information in your app come from?"
-- It's just for show right now — no real data yet → `mock`
+- It's just for show right now, and it doesn't matter how realistically it behaves →
+  `mock`
+- It's just for show right now, but you want it to behave like a real connected app
+  while it's being built (this is the more common choice when there's no backend yet)
+  → `json-server`
 - There's already a system/database this app needs to talk to → `rest` (default — see
   note below)
 - We need it to update instantly for everyone at the same time (like a live chat or
@@ -124,6 +131,12 @@ it need real-time/live updates (WebSockets)? Or is there no backend yet?"
 *Note: if Case 2 answers "there's already a system," and the person can't tell you
 whether it's REST or GraphQL, default to `rest` — it's the more common case — but flag
 to a developer that this should be confirmed.*
+
+*Note on `json-server` vs `mock`: most "no backend yet" cases should default to
+`json-server`, not `mock` — it exercises the real HTTP/interceptor chain (closer to
+how the app will behave once a real backend exists) with almost no extra setup cost.
+Reach for plain `mock` only when even a local fake server is more than what's needed
+(e.g. a very simple, mostly-static page).*
 
 ---
 

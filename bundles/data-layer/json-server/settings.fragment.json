@@ -1,0 +1,10 @@
+{
+  "deny": [
+    "Edit(./src/app/core/services/api.service.ts)",
+    "Edit(./src/app/core/interceptors/error.interceptor.ts)",
+    "Edit(./src/app/core/config/api.config.ts)",
+    "Write(./src/app/core/services/api.service.ts)",
+    "Write(./src/app/core/interceptors/error.interceptor.ts)",
+    "Write(./src/app/core/config/api.config.ts)"
+  ]
+}

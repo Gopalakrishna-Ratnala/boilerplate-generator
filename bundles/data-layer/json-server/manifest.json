@@ -1,0 +1,11 @@
+{
+  "axis": "data-layer",
+  "option": "json-server",
+  "label": "json-server (local fake REST API)",
+  "description": "A real local HTTP server (json-server) serving a genuine REST API from a db.json fixture file — unlike the 'mock' option (in-memory data, no real HTTP at all), this exercises the real HttpClient/interceptor chain against real network requests.",
+  "claudeMdSummaryLine": "Data layer: json-server (local fake REST API from db.json, real HTTP)",
+  "needsHttpClient": true,
+  "httpInterceptors": [
+    { "importName": "errorInterceptor", "importFrom": "./core/interceptors/error.interceptor" }
+  ]
+}

@@ -4,27 +4,21 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-15 (session 29)
-**Status:** The user ran the first genuinely hook-active feature-building test — a
-fresh Claude Code session started correctly inside `maxim-final` itself, so hooks
-were actually live for the first time in this entire testing exercise. Found 4 more
-real, confirmed issues. **Most important**: `check-missing-spec.sh` and
-`check-tsc.sh` were designed as non-blocking warnings (print to stderr, `exit 0`) —
-but Claude Code silently discards a `PostToolUse` hook's output on exit 0 (confirmed
-via Claude Code's own documentation and filed GitHub issues), so these warnings had
-**never been visible to anyone since either hook was built**. Fixed by exiting 1
-(non-zero, non-2 — visible but non-blocking) specifically when there's something to
-report. Also fixed: `check-hardcoded-colors.sh` only recognized hex/rgb()/hsl(), not
-newer CSS color functions (`oklch()`/`lab()`/`lch()`/`color()`) — a real gap since
-Tailwind v4's own default tokens commonly use `oklch()` — and only scanned
-`.scss`/`.css`/`.html`, never `.ts`, missing color literals inside inline templates
-entirely; both fixed and verified with real block/pass cases, including confirming
-no false positives against this project's own real config files. Also found and
-fixed a real, confirmed documentation inaccuracy: `angular.md` claimed every project
-has an explicit `provideZonelessChangeDetection()` call — verified via a real fresh
-v21 generation that this is simply false for v21+ (zoneless by default, zero
-explicit provider anywhere) and only true for v19/v20 (where the generator adds it
-deliberately) — fixed with real version-conditional content, verified for both cases.
+**Last updated:** 2026-07-16 (session 30)
+**Status:** Added a new `data-layer` bundle option: `json-server` — a real local fake
+REST API (json-server, pinned to stable `0.17.4`, not its unstable `latest` v1-beta
+npm tag which lacks `--routes` support) serving genuine HTTP responses from a
+`db.json` fixture, distinct from the existing `mock` option (in-memory only, no real
+HTTP). Required building a new generator capability first: no bundle had ever needed
+to add its own npm script before, so extended the bundle contract with an optional
+`scripts.fragment.json` (merges into `package.json`'s `scripts`, never overwrites an
+existing script of the same name). Reused the `rest` bundle's proven
+`ApiService`/`error.interceptor.ts` pattern since json-server responds exactly like a
+real REST backend, plus a `routes.json` rewrite so the URL shape matches this
+project's existing `apiBaseUrl` convention (`/api` prefix). Verified with a real,
+complete end-to-end test — not just files existing, but actually starting
+json-server and making real HTTP calls through the `/api` rewrite, confirming
+genuine data returned exactly matching what `ApiService` would call in practice.
 
 ---
 
@@ -1925,7 +1919,70 @@ files. `check-hardcoded-api-url.sh`'s narrower `*.service.ts`-only match was
 re-confirmed correct as-is — hardcoded API URLs are genuinely a service-layer-only
 concern, not a template concern, so no equivalent gap exists there.
 
-## 35. Where things stand — everything through session 29 done
+## 35. New `json-server` data-layer bundle — a new generator capability plus real end-to-end verification (session 30)
+
+User asked for a new `data-layer` bundle option: json-server, since "most cases we
+need to use json-server instead of mock data" for projects without a real backend
+yet — a real local fake REST API, meaningfully different from the existing `mock`
+option (in-memory only, zero real HTTP).
+
+**Verified the right version to pin before building anything**: checked the npm
+registry directly and found the `latest` tag currently points to `1.0.0-beta.15` — a
+beta rewrite with a materially different, less capable feature set (confirmed via
+web research: v1 beta explicitly does not support the `--routes` flag this bundle
+needs; IDs are always strings; several v0.x query features are unreliable/removed).
+The real stable line is `0.17.x`. Pinned to `^0.17.4` explicitly rather than trusting
+`latest` — same discipline applied to every other version-sensitive dependency in
+this project.
+
+**Required a new generator capability first**: no bundle had ever needed its own npm
+script before, so extended the bundle contract with an optional
+`scripts.fragment.json` — merges into `package.json`'s `scripts` section, skips
+(with a warning) rather than overwrites if a script of the same name already exists.
+Documented in `BUNDLE-CONTRACT.md` alongside the existing `deps.fragment.json`.
+
+**Built the bundle itself**:
+- `db.json` (project root) — real seed data; each top-level array key becomes a full
+  REST resource automatically.
+- `routes.json` (project root) — rewrites `/api/*` to the real resource path, so the
+  URL shape matches this project's existing `apiBaseUrl` convention
+  (`http://localhost:3000/api` in development) rather than introducing a different
+  convention just for this option.
+- `mock-api` npm script (via the new `scripts.fragment.json`) — starts json-server
+  with `--watch db.json --routes routes.json --port 3000`.
+- Reused the `rest` data-layer bundle's own `ApiService`/`error.interceptor.ts`/
+  `api.config.ts` files directly (copied, not referenced — this system has no
+  bundle-inheritance mechanism) since json-server responds exactly like a real REST
+  backend, so there was no reason to write a second, parallel implementation of the
+  same pattern.
+- `needsHttpClient`/`httpInterceptors` declared in the manifest, same as `rest` —
+  confirmed the existing `wireHttpClientAndInterceptors()` (session 25) correctly
+  picked this up with no changes needed.
+- Rules file explicit about the one thing most likely to go wrong: don't hardcode a
+  second, competing in-memory fixture array in a service when `db.json` already
+  exists as the single source of mock data.
+
+**Verified with a real, complete end-to-end test — not just "files exist"**:
+generated a real project, confirmed `mock-api` script and `provideHttpClient`
+wiring both present in the real `package.json`/`app.config.ts`, ran real `ng
+lint`/`ng build` (both clean), then **actually started json-server** and made real
+`curl` HTTP calls through the `/api` rewrite — confirmed the exact seed data comes
+back, at the exact URL shape (`http://localhost:3000/api/examples`) `ApiService`
+itself would construct. This is a materially more thorough verification than most
+bundles get, appropriate given it's the first bundle that spawns an actual server
+process rather than just generating static files.
+
+**Updated the `new-angular-project` skill's Q2** to offer `json-server` alongside
+the existing options, with explicit guidance — matching the user's own stated
+preference — that most "no backend yet" cases should default to `json-server` over
+plain `mock`, since it exercises the real HTTP/interceptor chain for negligible
+extra setup cost; `mock` remains the right choice only when even a local fake
+server is more than what's needed.
+
+Full JSON validation, `generate.js` syntax check, and the skill's frontmatter all
+re-verified clean after all changes.
+
+## 36. Where things stand — everything through session 30 done
 
 **Permanent addition to this project's testing discipline, effective immediately**:
 **every full validation pass must include a real `ng build`, not just `ng lint` and
