@@ -45,18 +45,25 @@ TSC_EXIT=$?
 
 if [ "$TSC_EXIT" -ne 0 ]; then
   ERROR_COUNT=$(echo "$TSC_OUTPUT" | grep -c "error TS" || true)
-  echo "WARNING: TypeScript type check found $ERROR_COUNT error(s)." >&2
-  echo "$TSC_OUTPUT" | grep "error TS" | head -15 >&2
+  ERROR_LINES=$(echo "$TSC_OUTPUT" | grep "error TS" | head -15)
+  MESSAGE="WARNING: TypeScript type check found ${ERROR_COUNT} error(s).
+${ERROR_LINES}"
   if [ "$ERROR_COUNT" -gt 15 ]; then
-    echo "... and $((ERROR_COUNT - 15)) more error(s). Run 'npx tsc --noEmit' to see all." >&2
+    MESSAGE="${MESSAGE}
+... and $((ERROR_COUNT - 15)) more error(s). Run 'npx tsc --noEmit' to see all."
   fi
-  # Exit 1, not 0 — found via real testing that Claude Code silently discards a
-  # PostToolUse hook's output on exit 0 (only reaches an internal debug log, never
-  # the visible transcript). A "non-blocking warning" that always exits 0 is
-  # actually invisible, not just non-blocking. Non-blocking AND visible requires a
-  # non-zero, non-2 exit code.
-  exit 1
+  # CORRECTED mechanism (session-29's exit-1 fix was itself wrong — see
+  # check-missing-spec.sh for the full explanation). Claude Code only processes
+  # JSON on exit 0, and only additionalContext inside hookSpecificOutput reliably
+  # reaches Claude's own context for a PostToolUse hook — plain stderr text on a
+  # non-zero exit does not. Always exit 0; the JSON output is what carries the
+  # warning now, not the exit code.
+  jq -n --arg msg "$MESSAGE" '{
+    "hookSpecificOutput": {
+      "hookEventName": "PostToolUse",
+      "additionalContext": $msg
+    }
+  }'
 fi
 
-# Nothing to report — this is the genuine "no issue" case, exit 0 is correct here.
 exit 0

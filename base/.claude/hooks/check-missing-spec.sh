@@ -3,14 +3,17 @@
 # Warns (non-blocking): a new component/service/pipe/guard/directive file has no
 # co-located .spec.ts yet.
 #
-# IMPORTANT exit-code note, found via real testing: Claude Code silently discards a
-# PostToolUse hook's stdout/stderr when it exits 0 — that output only reaches an
-# internal debug log, never the visible transcript. This means a hook designed to
-# "warn but not block" must NOT exit 0 when it has something to say — exit 0 there
-# means the warning was never actually seen by anyone, which is exactly what
-# happened here until this was found and fixed. Use any non-zero, non-2 exit code
-# (here: 1) to get a genuinely visible-but-non-blocking warning; reserve exit 0 for
-# the case where there's truly nothing to report.
+# CORRECTED exit-code/output mechanism (found via a real fresh Claude Code session
+# testing this live — the session-29 "fix" of exiting 1 was itself wrong).
+# Claude Code's own docs are explicit: "Claude Code only processes JSON on exit 0.
+# If you exit 2, any JSON is ignored." For PostToolUse specifically, the way to
+# actually inject a message into Claude's own context (not just a human's terminal)
+# is exit 0 plus a JSON object on stdout with hookSpecificOutput.additionalContext —
+# plain stderr text on a non-zero, non-2 exit code does NOT reliably reach Claude's
+# context for this event type, confirmed by a real session where this exact hook's
+# warning still didn't surface even after the exit-1 change. Exiting 1 was actually
+# worse than exiting 0: it meant Claude Code wouldn't even parse JSON output if this
+# script had included any, since JSON is only processed on exit 0.
 
 set -uo pipefail
 
@@ -34,9 +37,13 @@ esac
 SPEC_PATH="${FILE_PATH%.ts}.spec.ts"
 
 if [ ! -f "$SPEC_PATH" ]; then
-  echo "WARNING: no co-located spec found for $FILE_PATH (expected $SPEC_PATH)." >&2
-  echo "Source: .claude/rules/angular.md — every component, service, and pipe needs a test." >&2
-  exit 1
+  MESSAGE="WARNING: no co-located spec found for $FILE_PATH (expected $SPEC_PATH). Source: .claude/rules/angular.md — every component, service, and pipe needs a test."
+  jq -n --arg msg "$MESSAGE" '{
+    "hookSpecificOutput": {
+      "hookEventName": "PostToolUse",
+      "additionalContext": $msg
+    }
+  }'
 fi
 
 exit 0

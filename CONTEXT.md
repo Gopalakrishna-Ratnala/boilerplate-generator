@@ -4,23 +4,25 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-16 (session 31)
-**Status:** User asked for a 7th test report, following the exact same format as
-testers 1-6, but this time run directly by the central-brain session as a final
-confirmation of `json-server` in genuine feature-building use (not just the
-lint/build check from session 30). Generated Maxim's real combination with
-`json-server`, wrote a real "Products" feature (model, service, component, spec)
-against it, made one real mistake along the way (wrong selector prefix) and let
-`ng lint` catch it rather than fixing it quietly beforehand, then verified
-everything for real: `ng lint`/`ng build`/`ng test` all passing, and — the actual
-point of the exercise — **actually started `json-server` and confirmed via a real
-`curl` call that the exact endpoint the new feature calls returns the real seeded
-data**. Documented honestly in the report that this session cannot test hook
-enforcement (its tool calls don't route through Claude Code's `PreToolUse`/
-`PostToolUse` interception the way a real developer's fresh CLI session does, per
-session 26's finding) — this report confirms generation and runtime correctness,
-not hook enforcement, and says so explicitly rather than implying a false
-equivalence with testers 1-6's reports.
+**Last updated:** 2026-07-16 (session 32)
+**Status:** The real, hook-active fresh-session test on `maxim-final` came back — and it
+directly contradicted session 29's fix. `check-missing-spec.sh` still didn't surface
+its warning, even after being changed to exit 1. The tester ran the script manually
+and confirmed the script's own logic was correct (real exit 1, real warning text) —
+but that output never reached the live session, unlike `format-and-lint.sh`'s output,
+which did surface (as a "file modified externally" notice, a completely different
+mechanism — that hook always exits 0 and prints nothing, it just runs `prettier`/
+`eslint --fix` directly on disk). **Session 29's fix was itself wrong.** Re-researched
+against Claude Code's own official docs (not just community GitHub issues this time)
+and found the precise mechanism: *"Claude Code only processes JSON on exit 0. If you
+exit 2, any JSON is ignored."* For a `PostToolUse` hook to actually inject a message
+into Claude's own context (not just a human's terminal), it must exit 0 and print a
+specific JSON shape (`hookSpecificOutput.additionalContext`) — plain stderr text on a
+non-zero exit does not reliably reach Claude's context for this event type at all.
+Exiting 1, as session 29 did, was actually worse than exiting 0: it meant Claude Code
+wouldn't even parse JSON output from these scripts, since JSON is only processed on
+exit 0. Corrected both `check-missing-spec.sh` and `check-tsc.sh` to the actually-correct
+mechanism, verified real JSON output in both warning and no-warning cases.
 
 ---
 
@@ -2029,7 +2031,77 @@ hook-active. Genuine hook-enforcement confirmation for `json-server` specificall
 still requires a real team member's fresh Claude Code session started inside a
 `json-server`-generated project.
 
-## 37. Where things stand — everything through session 31 done
+## 37. Session 29's hook-visibility fix was itself wrong — corrected with the actual mechanism (session 32)
+
+The genuinely hook-active fresh-session test on `maxim-final` (the one this whole
+final round of testing was built around) came back, and it directly falsified
+session 29's fix. Direct quote from the report: *"`check-missing-spec.sh` did not
+visibly fire, even though I created spec-less `.ts` files transiently... I ran the
+script manually against a synthetic Write payload for a throwaway spec-less file and
+confirmed the script itself works correctly and returns exit code 1 with the
+expected warning text — so the script logic is fine, but that output never reached
+me during the actual tool calls, unlike the format-and-lint hook's output which did
+surface as a system reminder."*
+
+**This is a materially better bug report than session 29's**, because it isolates
+the exact variable: the script's own logic was independently verified correct in
+isolation (same test I ran in session 29), yet still didn't surface in real,
+hook-active use — meaning the exit-1 fix itself, not the underlying warning logic,
+was wrong.
+
+**Investigated why `format-and-lint.sh` surfaced when `check-missing-spec.sh` didn't,
+since both are `PostToolUse` hooks**: read `format-and-lint.sh`'s actual content
+directly rather than assuming — it always exits 0 and prints nothing to stderr at
+all. It just runs `prettier --write`/`eslint --fix` directly on the file. Its
+visibility has nothing to do with hook-message mechanics; Claude Code separately
+detects that a file it just wrote was modified on disk afterward and surfaces that
+as its own "file changed externally" notice. This is a completely different
+mechanism than what either `check-missing-spec.sh` or `check-tsc.sh` needs, since
+neither of them modifies any file — they only want to send a message.
+
+**Re-researched the actual, precise mechanism**, this time against Claude Code's own
+official hooks reference documentation directly, not just community-reported GitHub
+issues (which is what session 29 relied on, and which turned out to describe an
+incomplete picture). The precise, confirmed rule: *"You must choose one approach per
+hook, not both: either use exit codes alone for signaling, or exit 0 and print JSON
+for structured control. Claude Code only processes JSON on exit 0. If you exit 2,
+any JSON is ignored."* And specifically for tool-loop events: *"Tool-loop events
+(PreToolUse, PostToolUse, and friends) carry their context through
+`additionalContext` rather than raw stdout."* The correct shape for a
+non-blocking-but-visible `PostToolUse` message:
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PostToolUse",
+    "additionalContext": "the actual warning text"
+  }
+}
+```
+printed to stdout, with the script **always exiting 0** — exiting 1, as session 29
+did, was actually worse than exiting 0, since Claude Code doesn't parse JSON output
+at all unless the exit code is 0.
+
+**Fixed both `check-missing-spec.sh` and `check-tsc.sh`** to this actually-correct
+mechanism — always exit 0, emit the warning as `additionalContext` JSON when there's
+something to report, emit nothing when there isn't. Verified with real, isolated test
+cases: confirmed valid, parseable JSON in the warning case for both hooks (real
+`jq .` parse succeeded), confirmed clean empty output + exit 0 in the no-warning
+case. Re-ran a full real generation + `ng lint` + `ng build` afterward to confirm
+nothing else broke.
+
+**Honest note for the historical record**: this is the second time a hook-visibility
+fix in this project has needed correcting after the fact (session 29's original
+finding was real and worth fixing; the specific *mechanism* chosen to fix it was
+wrong). The lesson isn't "check exit codes more carefully" in the abstract — it's
+that **a fix for an agentic-platform behavior needs verification via the platform's
+own precise, current documentation, not general community discussion of a similar-sounding
+problem**, and even then, needs a real live test to confirm it actually worked, the
+way this session's report did. Session 29's fix looked directly informed by real
+research and passed its own isolated tests — and was still wrong in live use. That's
+a meaningfully stronger argument for "verify with a real fresh session before calling
+something fixed" than an abstract lesson would have been.
+
+## 38. Where things stand — everything through session 32 done
 
 **Permanent addition to this project's testing discipline, effective immediately**:
 **every full validation pass must include a real `ng build`, not just `ng lint` and
@@ -2080,17 +2152,30 @@ semi-automated testing setup for this project (or any Claude-Code-based guardrai
 system generally) needs to independently confirm its enforcement layer was actually
 active during the run, not just that no violation was observed.
 
-**Sixth permanent lesson, from session 29**: **a "non-blocking warning" hook that
-always exits 0 is not actually a warning — it's silent, full stop.** Claude Code
-discards a `PostToolUse` hook's output entirely on exit 0 (confirmed via official
-docs and multiple filed GitHub issues); only a non-zero, non-2 exit code produces a
-visible-but-non-blocking message. Any hook in this project (or built for it in the
-future) intended to warn without blocking must exit non-zero when it has something
-to report — `check-missing-spec.sh` and `check-tsc.sh` had this exact bug from the
-day they were built, invisible until the first genuinely hook-active test session
-happened to trigger both conditions in the same run. When adding any new "warn, don't
-block" hook going forward, verify its exit code choice against this explicitly rather
-than assuming exit 0 is the safe default — for a pure warning, it's the wrong one.
+**Sixth permanent lesson, from session 29 — corrected in session 32, since the
+original version of this lesson was itself wrong**: a "non-blocking warning" hook
+that always exits 0 is not actually a warning — but the fix isn't "exit non-zero
+instead." **A `PostToolUse` hook can only reliably reach Claude's own context via
+`exit 0` plus a JSON object on stdout shaped as
+`{"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": "..."}}`.**
+Claude Code only parses JSON output when the exit code is 0 — exiting 1 (session
+29's original fix) doesn't just fail to help, it's actively worse, since it means
+Claude Code won't process JSON from the hook at all even if some were present.
+`check-missing-spec.sh` and `check-tsc.sh` both needed this exact correction, found
+only because a real fresh Claude Code session tested the live behavior and directly
+contradicted the session-29 fix, despite that fix having been researched against
+real (if incomplete) documentation and passed its own isolated tests.
+
+**Seventh permanent lesson, from session 32**: **a fix for an agentic-platform
+behavior (Claude Code hook semantics, in this case) needs verification against that
+platform's own precise, current, official documentation — general community
+discussion of a similar-sounding problem (the GitHub issues session 29 relied on)
+can describe an incomplete or slightly-wrong picture of the actual mechanism.** And
+even a fix built on correct-seeming research still needs a real, live, hook-active
+test before being trusted — session 29's fix passed every isolated test it was given
+and was still wrong in live use. "The isolated test passed" and "this actually works
+in a real session" are different claims; this project has now needed the second one
+to catch what the first one missed, twice.
 
 1. **Upgrade Node on the test machine to at least v22.22.3 (or v24.15+/v26+).** This is
    now the clear #1 blocker, confirmed twice over (this sandbox, then the user's real
