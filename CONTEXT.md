@@ -4,25 +4,14 @@
 > this left off, without re-deriving the reasoning from scratch. Update this file at the
 > end of any session that makes a new decision or changes direction.
 
-**Last updated:** 2026-07-16 (session 32)
-**Status:** The real, hook-active fresh-session test on `maxim-final` came back — and it
-directly contradicted session 29's fix. `check-missing-spec.sh` still didn't surface
-its warning, even after being changed to exit 1. The tester ran the script manually
-and confirmed the script's own logic was correct (real exit 1, real warning text) —
-but that output never reached the live session, unlike `format-and-lint.sh`'s output,
-which did surface (as a "file modified externally" notice, a completely different
-mechanism — that hook always exits 0 and prints nothing, it just runs `prettier`/
-`eslint --fix` directly on disk). **Session 29's fix was itself wrong.** Re-researched
-against Claude Code's own official docs (not just community GitHub issues this time)
-and found the precise mechanism: *"Claude Code only processes JSON on exit 0. If you
-exit 2, any JSON is ignored."* For a `PostToolUse` hook to actually inject a message
-into Claude's own context (not just a human's terminal), it must exit 0 and print a
-specific JSON shape (`hookSpecificOutput.additionalContext`) — plain stderr text on a
-non-zero exit does not reliably reach Claude's context for this event type at all.
-Exiting 1, as session 29 did, was actually worse than exiting 0: it meant Claude Code
-wouldn't even parse JSON output from these scripts, since JSON is only processed on
-exit 0. Corrected both `check-missing-spec.sh` and `check-tsc.sh` to the actually-correct
-mechanism, verified real JSON output in both warning and no-warning cases.
+**Last updated:** 2026-07-16 (session 33)
+**Status:** User asked whether the generator repo itself had a README — it didn't.
+The repo had `CONTEXT.md` (an internal session log), `bundles/`, `scripts/`, but
+nothing that greets a first-time visitor with "here's what this is, here's how to
+use it." Added a proper root `README.md`: quick-start command, what a generated
+project includes, the current 9-axis/option table, repo structure, and a pointer to
+`test-reports/` as evidence this has actually been tested by building real features,
+not just checked for compilation.
 
 ---
 
@@ -2101,7 +2090,38 @@ research and passed its own isolated tests — and was still wrong in live use. 
 a meaningfully stronger argument for "verify with a real fresh session before calling
 something fixed" than an abstract lesson would have been.
 
-## 38. Where things stand — everything through session 32 done
+## 38. Also reviewed the real generated project zip, and added the missing root README (session 33)
+
+User sent the actual `maxim-final.zip` for review, rather than just narration.
+Cross-checked every specific claim from the earlier session transcript directly
+against the real files, not taken on faith: the `[formRoot]`-avoidance Signal Forms
+pattern, `ProductsState`'s scoping (`@Injectable()` not `providedIn: 'root'`) and
+`.asReadonly()`/immutable-update usage, semantic Tailwind tokens (confirmed zero raw
+`bg-blue-500`-style classes anywhere in the real templates), the dynamic
+`[attr.aria-label]` binding on the delete button, and `loadComponent()` lazy
+loading — every one matched the real rule files exactly. Ran real `ng lint` and
+`ng test` on the extracted project (had to reinstall `node_modules` fresh, since the
+zip's `lightningcss` native binary was built for the user's Mac, not this sandbox —
+a cross-platform artifact, not a bug): lint clean, 19/19 tests genuinely passing,
+matching exactly what was claimed.
+
+**One real, still-open gap found**: this zip's `.claude/hooks/check-missing-spec.sh`
+is still the pre-session-32 version (`exit 1`, not the corrected `exit 0` + JSON
+mechanism) — meaning this specific project was generated before that fix landed,
+and doesn't yet reflect the actual current, fully-corrected generator. Flagged
+clearly rather than treating the zip as fully representative of where the generator
+now stands.
+
+**Separately, found and fixed a real gap in the repo itself**: asked whether the
+generator repo had a README — it didn't. Nothing greeted a first-time visitor with
+what this project actually is; only `CONTEXT.md` (an internal, 38-section session
+log never meant for that purpose), `bundles/`, `scripts/`. Added a proper root
+`README.md`: quick-start command, what a generated project includes, the current
+9-axis/option table (verified counts directly against the real `bundles/` folder
+rather than assumed), repo structure, and a pointer to `test-reports/` as evidence
+of real feature-building testing, not just compilation checks.
+
+## 39. Where things stand — everything through session 33 done
 
 **Permanent addition to this project's testing discipline, effective immediately**:
 **every full validation pass must include a real `ng build`, not just `ng lint` and
